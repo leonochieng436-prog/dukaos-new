@@ -12,6 +12,7 @@ import {
 const NAV: DashboardNavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
   { href: "/dashboard/pos", label: "POS", icon: "pos" },
+  { href: "/dashboard/registers", label: "Registers", icon: "pos" },
   { href: "/dashboard/products", label: "Products", icon: "products" },
   { href: "/dashboard/inventory", label: "Inventory", icon: "inventory", children: [
     { href: "/dashboard/inventory", label: "Overview" },

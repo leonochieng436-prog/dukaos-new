@@ -14,7 +14,7 @@ const SETTINGS_GROUPS = [
   {
     label: "Operations",
     items: [
-      { href: "/dashboard/settings?section=registers", label: "Registers", description: "POS terminals and cash sessions", icon: "registers", permission: "SETTINGS_MANAGE", available: true },
+      { href: "/dashboard/registers", label: "Registers", description: "POS terminals and cash sessions", icon: "registers", permission: "SETTINGS_MANAGE", available: true },
       { href: "/dashboard/pos", label: "POS", description: "Sales and cash sessions", icon: "pos", permission: "SALES_VIEW", available: true },
       { href: "/dashboard/products", label: "Products", description: "Catalog and pricing", icon: "products", permission: "PRODUCTS_VIEW", available: true },
       { href: "/dashboard/inventory", label: "Inventory", description: "Stock and costing", icon: "inventory", permission: "INVENTORY_VIEW", available: true },

@@ -16,10 +16,12 @@ export async function openCashSession(raw: unknown): Promise<ActionResult<undefi
     const ctx = await requireAuthContext(); assertPermission(ctx, "CASH_SESSION_OPEN");
     const parsed = cashSessionSchema.safeParse(raw); if (!parsed.success) return { ok: false, error: "Enter a valid opening balance." };
     const input = parsed.data; assertBranchAccess(ctx, input.branchId);
-    const register = await ctx.db.register.findFirst({ where: { id: input.registerId, branchId: input.branchId, branch: { organizationId: ctx.organizationId }, isActive: true } });
-    if (!register) return { ok: false, error: "Register not found." };
+    const register = await ctx.db.register.findFirst({ where: { id: input.registerId, branchId: input.branchId, branch: { organizationId: ctx.organizationId }, isActive: true }, include: { branch: true } });
+    if (!register) return { ok: false, error: "Register not found for this branch." };
+    const existingUserSession = await ctx.db.cashSession.findFirst({ where: { userId: ctx.userId, status: "OPEN" } });
+    if (existingUserSession && existingUserSession.registerId !== register.id) return { ok: false, error: "Close your current register session before opening another one." };
     const open = await ctx.db.cashSession.findFirst({ where: { registerId: register.id, status: "OPEN" } });
-    if (open) return { ok: false, error: "This register already has an open session." };
+    if (open) return { ok: false, error: `Register ${register.name} is already open in ${register.branch.name}.` };
     await ctx.db.cashSession.create({ data: { organizationId: ctx.organizationId, branchId: input.branchId, registerId: register.id, userId: ctx.userId, openingBalance: input.openingBalance } });
     revalidatePath("/dashboard/pos"); return { ok: true, data: undefined };
   } catch (e) { if (e instanceof AuthError) return { ok: false, error: e.message }; throw e; }
@@ -34,10 +36,10 @@ export async function createSale(raw: unknown): Promise<ActionResult<{ id: strin
     const paymentTotal = payments.reduce((sum, payment) => sum.plus(payment.amount), new Decimal(0));
     if (payments.some((payment) => payment.method === "CREDIT") && !input.customerId) return { ok: false, error: "Select a customer for credit sales." };
     const branch = await ctx.db.branch.findFirst({ where: { id: input.branchId, isActive: true } });
-    const register = await ctx.db.register.findFirst({ where: { id: input.registerId, branchId: input.branchId, branch: { organizationId: ctx.organizationId }, isActive: true } });
+    const register = await ctx.db.register.findFirst({ where: { id: input.registerId, branchId: input.branchId, branch: { organizationId: ctx.organizationId }, isActive: true }, include: { branch: true } });
     const warehouse = await ctx.db.warehouse.findFirst({ where: { id: input.warehouseId, branchId: input.branchId, isActive: true } });
     if (!branch || !register || !warehouse) return { ok: false, error: "Branch, register, or warehouse not found." };
-    if (input.customerId && !(await ctx.db.customer.findFirst({ where: { id: input.customerId } }))) return { ok: false, error: "Customer not found." };
+    if (input.customerId && !(await ctx.db.customer.findFirst({ where: { id: input.customerId, organizationId: ctx.organizationId } }))) return { ok: false, error: "Customer not found." };
     const variants = await ctx.db.productVariant.findMany({ where: { id: { in: input.items.map((item) => item.variantId) }, isActive: true, product: { isActive: true, organizationId: ctx.organizationId } }, include: { product: true } });
     if (variants.length !== input.items.length) return { ok: false, error: "One or more products were not found." };
     const lines = input.items.map((item) => { const variant = variants.find((candidate) => candidate.id === item.variantId)!; const quantity = new Decimal(item.quantity); const price = new Decimal(variant.sellingPrice.toString()); return { ...item, quantity, price, total: quantity.times(price), variant }; });
@@ -61,6 +63,7 @@ export async function createSale(raw: unknown): Promise<ActionResult<{ id: strin
       }
       const session = await tx.cashSession.findFirst({ where: { registerId: register.id, branchId: branch.id, organizationId: ctx.organizationId, status: "OPEN" } });
       if (!session) throw new Error("Open the register before completing a sale.");
+      if (session.userId !== ctx.userId) throw new Error("This register session is assigned to another cashier.");
       const created = await tx.sale.create({ data: { organizationId: ctx.organizationId, branchId: branch.id, registerId: register.id, cashierId: ctx.userId, cashSessionId: session?.id, receiptNumber: `R-${Date.now()}`, subtotal: subtotal.toFixed(2), total: subtotal.toFixed(2), cogsTotal: cogs.toFixed(2), amountPaid: amountPaid.toFixed(2), changeGiven: Decimal.max(amountPaid.minus(subtotal), 0).toFixed(2), isCreditSale: payments.some((payment) => payment.method === "CREDIT"), customerId: input.customerId || null, items: { create: saleItems }, payments: { create: payments.map((payment) => ({ organizationId: ctx.organizationId, method: payment.method, amount: payment.amount })) } } });
       const cashPaid = payments.filter((payment) => payment.method === "CASH").reduce((sum, payment) => sum.plus(payment.amount), new Decimal(0));
       if (session && cashPaid.gt(0)) await tx.cashMovement.create({ data: { cashSessionId: session.id, type: "SALE", amount: Decimal.max(cashPaid.minus(Decimal.max(amountPaid.minus(subtotal), 0)), 0).toFixed(2), referenceType: "Sale", referenceId: created.id } });
@@ -75,9 +78,10 @@ export async function closeCashSession(raw: unknown): Promise<ActionResult<undef
   try {
     const ctx = await requireAuthContext(); assertPermission(ctx, "CASH_SESSION_CLOSE");
     const parsed = closeCashSessionSchema.safeParse(raw); if (!parsed.success) return { ok: false, error: "Enter the actual cash balance." };
-    const input = parsed.data; const session = await ctx.db.cashSession.findFirst({ where: { id: input.sessionId, status: "OPEN" } });
+    const input = parsed.data; const session = await ctx.db.cashSession.findFirst({ where: { id: input.sessionId, organizationId: ctx.organizationId, status: "OPEN" } });
     if (!session) return { ok: false, error: "Open cash session not found." };
     if (ctx.branchIds && !ctx.branchIds.includes(session.branchId)) return { ok: false, error: "You do not have access to this register." };
+    if (session.userId !== ctx.userId && !ctx.permissions.has("CASH_SESSION_VIEW_ALL")) return { ok: false, error: "You are not authorized to close this register session." };
     const summary = await getRegisterSummary(ctx.db, session.id);
     if (!summary) return { ok: false, error: "Open cash session not found." };
     const expected = new Decimal(summary.expectedCash);

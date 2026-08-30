@@ -205,7 +205,35 @@ export default async function DashboardPage({
           </CardContent>
         </Card>
 
-        <Card><CardContent className="p-5"><div className="mb-4"><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">Sales comparison</p><h2 className="mt-1 text-lg font-semibold">Payment mix</h2></div><PieChart slices={paymentSlices} formatValue={(value) => formatMoney(new Decimal(value))} /></CardContent></Card>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-warning">Operational snapshot</p>
+                <h2 className="mt-1 text-lg font-semibold">Today&apos;s exceptions</h2>
+              </div>
+              <ArrowDownLeft size={19} className="text-warning" />
+            </div>
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center justify-between rounded-[var(--radius-sm)] bg-warning-tint px-3 py-2.5">
+                <span className="text-[12px] font-medium">Low-stock alerts</span>
+                <Link href="/dashboard/inventory" className="text-sm font-semibold text-warning hover:underline">{lowStock} items</Link>
+              </div>
+              <div className="flex items-center justify-between rounded-[var(--radius-sm)] bg-danger-tint px-3 py-2.5">
+                <span className="text-[12px] font-medium">Refunds today</span>
+                <span className="font-tabular text-sm font-semibold text-danger">{formatMoney(todayRefunds)}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-[var(--radius-sm)] bg-primary-tint px-3 py-2.5">
+                <span className="text-[12px] font-medium">Customers served</span>
+                <span className="font-tabular text-sm font-semibold text-primary">{servedCustomers}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-[var(--radius-sm)] bg-info-tint px-3 py-2.5">
+                <span className="text-[12px] font-medium">Credit summary</span>
+                <Link href="/dashboard/credit" className="text-sm font-semibold text-info hover:underline">{formatMoney(totalCreditOutstanding)}</Link>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
