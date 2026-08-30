@@ -14,7 +14,7 @@ export default async function PosPage() {
   const [branches, warehouses, registers, variants, customers, openSession, recentSales, lastClosedSession] = await Promise.all([
     ctx.db.branch.findMany({ where: { isActive: true, organizationId: ctx.organizationId }, orderBy: { name: "asc" } }),
     ctx.db.warehouse.findMany({ where: { isActive: true, branch: { organizationId: ctx.organizationId } }, orderBy: { name: "asc" } }),
-    ctx.db.register.findMany({ where: { isActive: true, branch: { organizationId: ctx.organizationId } }, orderBy: { name: "asc" } }),
+    ctx.db.register.findMany({ where: { isActive: true, branch: { organizationId: ctx.organizationId } }, orderBy: { name: "asc" }, include: { credentials: true } }),
     ctx.db.productVariant.findMany({ where: { isActive: true, product: { isActive: true, organizationId: ctx.organizationId } }, include: { product: { include: { category: true } }, inventoryItems: { select: { warehouseId: true, quantity: true } } }, orderBy: { product: { name: "asc" } } }),
     ctx.db.customer.findMany({ where: { organizationId: ctx.organizationId, isWalkIn: false }, orderBy: { name: "asc" } }),
     ctx.db.cashSession.findFirst({ where: { userId: ctx.userId, organizationId: ctx.organizationId, status: "OPEN" }, include: { branch: true, register: true } }),

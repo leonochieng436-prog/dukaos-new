@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAuthContext, assertPermission, assertOwner, AuthError } from "@/server/auth/context";
+import { hashPassword } from "@/server/auth/password";
 import { recordAudit } from "@/server/services/audit";
 import { createBranchSchema } from "@/lib/validation/auth";
 import type { ActionResult } from "./auth";
@@ -28,6 +29,53 @@ export async function createRegister(raw: unknown): Promise<ActionResult<{ id: s
     revalidatePath("/dashboard/settings/registers");
     revalidatePath("/dashboard/settings/branches");
     return { ok: true, data: { id: register.id } };
+  } catch (e) {
+    if (e instanceof AuthError) return { ok: false, error: e.message };
+    throw e;
+  }
+}
+
+export async function upsertRegisterCredential(raw: unknown): Promise<ActionResult<undefined>> {
+  try {
+    const ctx = await requireAuthContext();
+    assertPermission(ctx, "BRANCHES_MANAGE");
+    assertOwner(ctx);
+    const parsed = z.object({
+      registerId: z.string().min(1),
+      terminalCode: z.string().trim().min(3).max(40),
+      terminalPassword: z.string().max(120).optional().or(z.literal("")),
+      enabled: z.boolean().optional(),
+    }).safeParse(raw);
+    if (!parsed.success) {
+      return { ok: false, error: "Enter a valid terminal code." };
+    }
+    const input = parsed.data;
+    const register = await ctx.db.register.findFirst({ where: { id: input.registerId, branch: { organizationId: ctx.organizationId }, isActive: true } });
+    if (!register) return { ok: false, error: "Register not found." };
+    const existingCredential = await ctx.db.registerCredential.findUnique({ where: { registerId: register.id } });
+    if (!existingCredential && !input.terminalPassword?.trim()) {
+      return { ok: false, error: "Set a terminal password for this register." };
+    }
+    const shouldRequireTerminalLogin = input.enabled ?? (Boolean(input.terminalCode.trim()) || Boolean(input.terminalPassword?.trim()));
+    const nextPasswordHash = input.terminalPassword && input.terminalPassword.trim().length >= 8
+      ? await hashPassword(input.terminalPassword)
+      : existingCredential?.passwordHash ?? await hashPassword("change-me-please");
+    const credential = await ctx.db.registerCredential.upsert({
+      where: { registerId: register.id },
+      create: { registerId: register.id, terminalCode: input.terminalCode, passwordHash: nextPasswordHash, isActive: shouldRequireTerminalLogin },
+      update: { terminalCode: input.terminalCode, passwordHash: nextPasswordHash, isActive: shouldRequireTerminalLogin },
+    });
+    await recordAudit({
+      organizationId: ctx.organizationId,
+      userId: ctx.userId,
+      action: "REGISTER_CREDENTIAL_UPDATED",
+      entityType: "RegisterCredential",
+      entityId: credential.id,
+      metadata: { registerId: register.id, terminalCode: input.terminalCode, enabled: input.enabled ?? true },
+    });
+    revalidatePath("/dashboard/settings/branches");
+    revalidatePath("/dashboard/pos");
+    return { ok: true, data: undefined };
   } catch (e) {
     if (e instanceof AuthError) return { ok: false, error: e.message };
     throw e;

@@ -12,7 +12,13 @@ export const saleSchema = z.object({
 });
 export type SaleInput = z.infer<typeof saleSchema>;
 
-export const cashSessionSchema = z.object({ branchId: z.string().min(1), registerId: z.string().min(1), openingBalance: z.string().min(1).refine((value) => Number(value) >= 0) });
+export const cashSessionSchema = z.object({
+  branchId: z.string().min(1),
+  registerId: z.string().min(1),
+  openingBalance: z.string().min(1).refine((value) => Number(value) >= 0),
+  terminalCode: z.string().max(40).optional().or(z.literal("")),
+  terminalPassword: z.string().max(120).optional().or(z.literal("")),
+});
 export const closeCashSessionSchema = z.object({
   sessionId: z.string().min(1),
   actualBalance: z.string().min(1).refine((value) => Number(value) >= 0),

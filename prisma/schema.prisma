@@ -99,17 +99,32 @@ model Warehouse {
 }
 
 model Register {
-  id           String        @id @default(cuid())
+  id           String               @id @default(cuid())
   branchId     String
   name         String
-  isActive     Boolean       @default(true)
-  createdAt    DateTime      @default(now())
+  isActive     Boolean              @default(true)
+  createdAt    DateTime             @default(now())
   cashSessions CashSession[]
-  branch       Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  credentials  RegisterCredential?
+  branch       Branch               @relation(fields: [branchId], references: [id], onDelete: Cascade)
   sales        Sale[]
 
   @@index([branchId])
   @@map("registers")
+}
+
+model RegisterCredential {
+  id           String   @id @default(cuid())
+  registerId   String   @unique
+  terminalCode String
+  passwordHash String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  register     Register @relation(fields: [registerId], references: [id], onDelete: Cascade)
+
+  @@index([registerId])
+  @@map("register_credentials")
 }
 
 model User {

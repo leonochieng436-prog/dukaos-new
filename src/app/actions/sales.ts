@@ -10,14 +10,21 @@ import { saleSchema, cashSessionSchema, closeCashSessionSchema } from "@/lib/val
 import { z } from "zod";
 import type { ActionResult } from "./auth";
 import { getRegisterSummary } from "@/server/services/register-summary";
+import { matchesRegisterCredential } from "@/lib/register-credentials";
 
 export async function openCashSession(raw: unknown): Promise<ActionResult<undefined>> {
   try {
     const ctx = await requireAuthContext(); assertPermission(ctx, "CASH_SESSION_OPEN");
     const parsed = cashSessionSchema.safeParse(raw); if (!parsed.success) return { ok: false, error: "Enter a valid opening balance." };
     const input = parsed.data; assertBranchAccess(ctx, input.branchId);
-    const register = await ctx.db.register.findFirst({ where: { id: input.registerId, branchId: input.branchId, branch: { organizationId: ctx.organizationId }, isActive: true }, include: { branch: true } });
+    const register = await ctx.db.register.findFirst({ where: { id: input.registerId, branchId: input.branchId, branch: { organizationId: ctx.organizationId }, isActive: true }, include: { branch: true, credentials: true } });
     if (!register) return { ok: false, error: "Register not found for this branch." };
+    const requiredCredential = register.credentials?.isActive ? register.credentials : null;
+    if (requiredCredential && !ctx.isOwner) {
+      if (!input.terminalCode || !input.terminalPassword) return { ok: false, error: "This register requires its terminal code and password." };
+      const matches = await matchesRegisterCredential(input.terminalCode, input.terminalPassword, requiredCredential.terminalCode, requiredCredential.passwordHash);
+      if (!matches) return { ok: false, error: "Invalid register terminal credentials." };
+    }
     const existingUserSession = await ctx.db.cashSession.findFirst({ where: { userId: ctx.userId, status: "OPEN" } });
     if (existingUserSession && existingUserSession.registerId !== register.id) return { ok: false, error: "Close your current register session before opening another one." };
     const open = await ctx.db.cashSession.findFirst({ where: { registerId: register.id, status: "OPEN" } });

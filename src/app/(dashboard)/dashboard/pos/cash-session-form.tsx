@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { openCashSession } from "@/app/actions/sales";
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 type BranchOption = { id: string; name: string };
-type RegisterOption = { id: string; name: string; branchId: string };
+type RegisterOption = { id: string; name: string; branchId: string; requiresTerminalLogin?: boolean };
 
 export function CashSessionForm({ branches, registers }: { branches: BranchOption[]; registers: RegisterOption[] }) {
   const router = useRouter();
@@ -83,13 +84,24 @@ export function CashSessionForm({ branches, registers }: { branches: BranchOptio
           </select>
         </label>
       </div>
-      <label className="block space-y-1.5 text-sm">
-        <span className="text-muted-foreground">Opening cash</span>
-        <Input name="openingBalance" type="number" min="0" step="0.01" placeholder="KSh 5,000" required />
-      </label>
-      <Button type="submit" disabled={pending || !branchId || !registerId} className="w-full">
-        {pending ? "Opening register..." : "Open register"}
-      </Button>
+      {selectedRegister?.requiresTerminalLogin ? (
+        <div className="rounded-[var(--radius-sm)] border border-primary/20 bg-primary-tint px-3 py-2 text-sm text-primary">
+          <p className="font-medium">This register requires a cashier terminal login.</p>
+          <Link href={`/dashboard/pos/terminal-login?branchId=${branchId}&registerId=${registerId}`} className="mt-2 inline-flex items-center font-semibold hover:underline">
+            Continue to terminal login →
+          </Link>
+        </div>
+      ) : (
+        <>
+          <label className="block space-y-1.5 text-sm">
+            <span className="text-muted-foreground">Opening cash</span>
+            <Input name="openingBalance" type="number" min="0" step="0.01" placeholder="KSh 5,000" required />
+          </label>
+          <Button type="submit" disabled={pending || !branchId || !registerId} className="w-full">
+            {pending ? "Opening register..." : "Open register"}
+          </Button>
+        </>
+      )}
     </form>
   );
 }
