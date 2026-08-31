@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Barcode, Minus, Plus, Search, ShoppingCart, Trash2 } from "lucide-react";
 import Decimal from "decimal.js";
 import { createSale } from "@/app/actions/sales";
+import { buildReceiptPreview } from "@/lib/sales";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -74,6 +75,31 @@ export function PosForm({ branches, warehouses, registers, variants, customers, 
       return { ...line, quantity: Math.min(maximum, Math.max(0, quantity)) };
     }).filter((line) => line.quantity > 0));
   }
+  function previewReceipt() {
+    if (cartLines.length === 0) return;
+    const previewPaymentMethod = splitPayment ? `${paymentMethod} + ${secondPaymentMethod}` : paymentMethod;
+    const previewAmountPaid = splitPayment ? new Decimal(amountPaid || "0").plus(secondReceived).toFixed(2) : amountPaid || total.toString();
+    const preview = buildReceiptPreview({
+      customerName: customers.find((item) => item.id === customerId)?.name ?? "Walk-in customer",
+      paymentMethod: previewPaymentMethod,
+      amountPaid: previewAmountPaid,
+      total: total.toString(),
+      items: cartLines.map((line) => ({
+        name: line.variant.label,
+        quantity: line.quantity,
+        unitPrice: line.variant.price,
+        total: new Decimal(line.variant.price).times(line.quantity).toFixed(2),
+      })),
+    });
+
+    const receiptWindow = window.open("", "_blank", "width=420,height=900");
+    if (!receiptWindow) return;
+
+    receiptWindow.document.write(`<!DOCTYPE html><html><head><title>Receipt preview</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#111;background:#fff}h2{margin:0 0 12px;font-size:22px}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{padding:6px 0;text-align:left;border-bottom:1px solid #ddd;font-size:12px}td:last-child,th:last-child{text-align:right}dl{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:12px}dd{margin:0;text-align:right}.total{font-weight:700;font-size:16px;margin-top:12px}</style></head><body><h2>Receipt Preview</h2><dl><dt>Customer</dt><dd>${preview.customerName}</dd><dt>Payment</dt><dd>${preview.paymentMethod}</dd><dt>Amount paid</dt><dd>KES ${preview.amountPaid}</dd><dt>Change</dt><dd>KES ${preview.changeGiven}</dd></dl><table><thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead><tbody>${preview.items.map((item) => `<tr><td>${item.name}</td><td>${item.quantity}</td><td>KES ${new Decimal(item.unitPrice).toFixed(2)}</td><td>KES ${new Decimal(item.total).toFixed(2)}</td></tr>`).join("")}</tbody></table><div class="total">Total: KES ${preview.total}</div></body></html>`);
+    receiptWindow.document.close();
+    receiptWindow.focus();
+  }
+
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -109,7 +135,7 @@ export function PosForm({ branches, warehouses, registers, variants, customers, 
           <Input name="amountPaid" value={amountPaid} onChange={(event) => setAmountPaid(event.target.value)} type="number" min="0" step="0.01" placeholder={`Amount received · KES ${total.toFixed(2)}`} className="mt-3" required={paymentMethod !== "CREDIT"} />
           <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={splitPayment} onChange={(event) => setSplitPayment(event.target.checked)} /> Use two payment methods</label>
           {splitPayment && <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-1"><select value={secondPaymentMethod} onChange={(event) => setSecondPaymentMethod(event.target.value as typeof paymentMethod)} className="h-9 rounded border border-border-strong bg-surface px-2 text-sm">{(["CASH", "MPESA", "CARD", "BANK_TRANSFER", "CREDIT"] as const).map((method) => <option key={method} value={method}>{method === "BANK_TRANSFER" ? "Bank transfer" : method === "MPESA" ? "M-Pesa" : method[0] + method.slice(1).toLowerCase()}</option>)}</select><Input value={secondPaymentAmount} onChange={(event) => setSecondPaymentAmount(event.target.value)} type="number" min="0" step="0.01" placeholder="Second payment amount" /></div>}
-          {paymentMethod === "CASH" && receivedTotal.greaterThanOrEqualTo(total) && <div className="mt-2 flex justify-between rounded border border-success/20 bg-success-tint px-3 py-2 text-sm text-success"><span>Change</span><strong className="font-tabular">KES {change.toFixed(2)}</strong></div>}{error && <p className="mt-3 rounded border border-danger/20 bg-danger-tint px-3 py-2 text-[12px] text-danger">{error}</p>}<Button type="submit" disabled={pending || cartLines.length === 0 || receivedTotal.lessThan(total) && ![paymentMethod, secondPaymentMethod].includes("CREDIT")} className="mt-4 h-12 w-full text-sm font-semibold">{pending ? "Completing sale..." : `Complete sale · KES ${total.toFixed(2)}`}<ArrowRight size={16} /></Button>
+          {paymentMethod === "CASH" && receivedTotal.greaterThanOrEqualTo(total) && <div className="mt-2 flex justify-between rounded border border-success/20 bg-success-tint px-3 py-2 text-sm text-success"><span>Change</span><strong className="font-tabular">KES {change.toFixed(2)}</strong></div>}{error && <p className="mt-3 rounded border border-danger/20 bg-danger-tint px-3 py-2 text-[12px] text-danger">{error}</p>}<div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-1"><Button type="button" variant="secondary" onClick={previewReceipt} disabled={cartLines.length === 0} className="h-11 text-sm font-semibold">View receipt</Button><Button type="submit" disabled={pending || cartLines.length === 0 || receivedTotal.lessThan(total) && ![paymentMethod, secondPaymentMethod].includes("CREDIT")} className="h-12 text-sm font-semibold">{pending ? "Completing sale..." : `Complete sale · KES ${total.toFixed(2)}`}<ArrowRight size={16} /></Button></div>
         </div>
       </aside>
     </form>

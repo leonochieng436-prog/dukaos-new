@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   Boxes,
+  DollarSign,
   LayoutDashboard,
   Package,
   Settings,
@@ -25,6 +26,7 @@ export type DashboardNavItem = {
 const ICONS = {
   dashboard: LayoutDashboard,
   pos: ShoppingCart,
+  sales: DollarSign,
   products: Package,
   inventory: Boxes,
   purchases: Truck,
