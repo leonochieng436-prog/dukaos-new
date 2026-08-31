@@ -40,7 +40,8 @@ export async function createSale(raw: unknown): Promise<ActionResult<{ id: strin
     const parsed = saleSchema.safeParse(raw); if (!parsed.success) return { ok: false, error: "Add products and choose a payment method.", fieldErrors: parsed.error.flatten().fieldErrors };
     const input = parsed.data; assertBranchAccess(ctx, input.branchId);
     const payments = input.payments?.length ? input.payments : [{ method: input.paymentMethod, amount: input.amountPaid }];
-    const paymentTotal = payments.reduce((sum, payment) => sum.plus(payment.amount), new Decimal(0));
+    const cashPaid = payments.filter((payment) => payment.method !== "CREDIT").reduce((sum, payment) => sum.plus(payment.amount), new Decimal(0));
+    const creditPortion = payments.some((payment) => payment.method === "CREDIT") ? Decimal.max(new Decimal(0), new Decimal(input.amountPaid || "0").minus(cashPaid)) : new Decimal(0);
     if (payments.some((payment) => payment.method === "CREDIT") && !input.customerId) return { ok: false, error: "Select a customer for credit sales." };
     const branch = await ctx.db.branch.findFirst({ where: { id: input.branchId, isActive: true } });
     const register = await ctx.db.register.findFirst({ where: { id: input.registerId, branchId: input.branchId, branch: { organizationId: ctx.organizationId }, isActive: true }, include: { branch: true } });
@@ -60,20 +61,19 @@ export async function createSale(raw: unknown): Promise<ActionResult<{ id: strin
         cogs = cogs.plus(consumed.totalCost);
         saleItems.push({ variantId: line.variantId, productNameSnapshot: line.variant.product.name, variantNameSnapshot: line.variant.name, skuSnapshot: line.variant.sku, quantity: line.quantity.toString(), unitPrice: line.price.toString(), unitCost: unitCost.toString(), total: line.total.toString() });
       }
-      const amountPaid = paymentTotal; if (amountPaid.lessThan(subtotal) && !payments.some((payment) => payment.method === "CREDIT")) throw new Error("Payment is less than the sale total.");
+      if (cashPaid.lessThan(subtotal) && !payments.some((payment) => payment.method === "CREDIT")) throw new Error("Payment is less than the sale total.");
       if (input.customerId && payments.some((payment) => payment.method === "CREDIT")) {
         const customer = await tx.customer.findFirst({ where: { id: input.customerId, organizationId: ctx.organizationId } });
         if (!customer) throw new Error("Customer not found.");
         const existingCredit = await tx.sale.aggregate({ where: { customerId: customer.id, isCreditSale: true, status: "COMPLETED" }, _sum: { total: true, amountPaid: true } });
         const outstanding = new Decimal(existingCredit._sum.total?.toString() ?? 0).minus(existingCredit._sum.amountPaid?.toString() ?? 0);
-        if (outstanding.plus(subtotal.minus(amountPaid)).greaterThan(customer.creditLimit.toString())) throw new Error("This sale would exceed the customer's credit limit.");
+        if (outstanding.plus(subtotal.minus(cashPaid)).greaterThan(customer.creditLimit.toString())) throw new Error("This sale would exceed the customer's credit limit.");
       }
       const session = await tx.cashSession.findFirst({ where: { registerId: register.id, branchId: branch.id, organizationId: ctx.organizationId, status: "OPEN" } });
       if (!session) throw new Error("Open the register before completing a sale.");
       if (session.userId !== ctx.userId) throw new Error("This register session is assigned to another cashier.");
-      const created = await tx.sale.create({ data: { organizationId: ctx.organizationId, branchId: branch.id, registerId: register.id, cashierId: ctx.userId, cashSessionId: session?.id, receiptNumber: `R-${Date.now()}`, subtotal: subtotal.toFixed(2), total: subtotal.toFixed(2), cogsTotal: cogs.toFixed(2), amountPaid: amountPaid.toFixed(2), changeGiven: Decimal.max(amountPaid.minus(subtotal), 0).toFixed(2), isCreditSale: payments.some((payment) => payment.method === "CREDIT"), customerId: input.customerId || null, items: { create: saleItems }, payments: { create: payments.map((payment) => ({ organizationId: ctx.organizationId, method: payment.method, amount: payment.amount })) } } });
-      const cashPaid = payments.filter((payment) => payment.method === "CASH").reduce((sum, payment) => sum.plus(payment.amount), new Decimal(0));
-      if (session && cashPaid.gt(0)) await tx.cashMovement.create({ data: { cashSessionId: session.id, type: "SALE", amount: Decimal.max(cashPaid.minus(Decimal.max(amountPaid.minus(subtotal), 0)), 0).toFixed(2), referenceType: "Sale", referenceId: created.id } });
+      const created = await tx.sale.create({ data: { organizationId: ctx.organizationId, branchId: branch.id, registerId: register.id, cashierId: ctx.userId, cashSessionId: session?.id, receiptNumber: `R-${Date.now()}`, subtotal: subtotal.toFixed(2), total: subtotal.toFixed(2), cogsTotal: cogs.toFixed(2), amountPaid: cashPaid.toFixed(2), changeGiven: Decimal.max(cashPaid.minus(subtotal), 0).toFixed(2), isCreditSale: payments.some((payment) => payment.method === "CREDIT"), customerId: input.customerId || null, items: { create: saleItems }, payments: { create: payments.map((payment) => ({ organizationId: ctx.organizationId, method: payment.method, amount: payment.amount })) } } });
+      if (session && cashPaid.gt(0)) await tx.cashMovement.create({ data: { cashSessionId: session.id, type: "SALE", amount: cashPaid.toFixed(2), referenceType: "Sale", referenceId: created.id } });
       return created;
     }, { maxWait: 20000, timeout: 60000 });
     await recordAudit({ organizationId: ctx.organizationId, userId: ctx.userId, action: "SALE_CREATED", entityType: "Sale", entityId: sale.id, metadata: { total: subtotal.toFixed(2) } });

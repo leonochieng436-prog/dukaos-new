@@ -38,15 +38,10 @@ export default async function CreditPage() {
   const customerSummary = customers
     .map((customer) => {
       const creditSales = customer.sales;
-      const credit = creditSales.reduce(
+      const balance = creditSales.reduce(
         (sum, sale) => sum.plus(new Decimal(sale.total.toString()).minus(new Decimal(sale.amountPaid.toString()))),
         new Decimal(0),
       );
-      const payments = customer.payments.reduce(
-        (sum, payment) => sum.plus(new Decimal(payment.amount.toString())),
-        new Decimal(0),
-      );
-      const balance = credit.minus(payments);
 
       return {
         customer,

@@ -7,6 +7,7 @@ import { requireAuthContext, assertPermission, AuthError } from "@/server/auth/c
 import { increaseStock } from "@/server/services/inventory";
 import { recordAudit } from "@/server/services/audit";
 import { customerSchema, customerPaymentSchema, returnSchema } from "@/lib/validation/customers";
+import { allocatePaymentToSales } from "@/lib/credit";
 import type { ActionResult } from "./auth";
 
 export async function createCustomer(raw: unknown): Promise<ActionResult<{ id: string }>> {
@@ -25,6 +26,8 @@ export async function clearCustomerBalance(raw: unknown): Promise<ActionResult<u
     const ctx = await requireAuthContext(); assertPermission(ctx, "CUSTOMER_CREDIT_MANAGE");
     const data = raw instanceof FormData ? Object.fromEntries(raw.entries()) : raw;
     const customerId = typeof data === "object" && data && "customerId" in data ? String(data.customerId ?? "") : "";
+    const method = typeof data === "object" && data && "method" in data ? String(data.method ?? "cash") : "cash";
+    const reference = typeof data === "object" && data && "reference" in data ? String(data.reference ?? "") : "";
     if (!customerId) return { ok: false, error: "Select a customer to clear." };
 
     const customer = await ctx.db.customer.findUnique({ where: { id: customerId } });
@@ -32,27 +35,49 @@ export async function clearCustomerBalance(raw: unknown): Promise<ActionResult<u
 
     const creditSales = await ctx.db.sale.findMany({
       where: { customerId: customer.id, isCreditSale: true, status: "COMPLETED" },
-      select: { total: true, amountPaid: true },
+      select: { id: true, total: true, amountPaid: true, createdAt: true },
+      orderBy: { createdAt: "asc" },
     });
-    const customerPayments = await ctx.db.customerPayment.findMany({
-      where: { customerId: customer.id },
-      select: { amount: true },
-    });
-
-    const balance = creditSales.reduce((sum, sale) => sum.plus(sale.total.toString()).minus(sale.amountPaid.toString()), new Decimal(0))
-      .minus(customerPayments.reduce((sum, payment) => sum.plus(payment.amount.toString()), new Decimal(0)));
+    const balance = creditSales.reduce((sum, sale) => sum.plus(sale.total.toString()).minus(sale.amountPaid.toString()), new Decimal(0));
 
     if (balance.lte(0)) return { ok: false, error: "This customer already has no outstanding balance." };
 
-    await ctx.db.customerPayment.create({
-      data: {
-        organizationId: ctx.organizationId,
-        customerId: customer.id,
-        amount: balance.toFixed(2),
-        method: "cash",
-        reference: "Balance cleared",
-        receivedById: ctx.userId,
-      },
+    const allocations = allocatePaymentToSales({ sales: creditSales, paymentAmount: balance.toFixed(2) });
+
+    const selectedMethod = ["cash", "mpesa", "bank", "card", "other"].includes(method) ? method : "cash";
+
+    await ctx.db.$transaction(async (tx) => {
+      for (const allocation of allocations) {
+        const sale = creditSales.find((entry) => entry.id === allocation.saleId);
+        if (!sale) continue;
+
+        const nextAmountPaid = new Decimal(sale.amountPaid.toString()).plus(new Decimal(allocation.amount));
+        await tx.sale.update({ where: { id: sale.id }, data: { amountPaid: nextAmountPaid.toFixed(2) } });
+        await tx.customerPayment.create({
+          data: {
+            organizationId: ctx.organizationId,
+            customerId: customer.id,
+            saleId: sale.id,
+            amount: allocation.amount,
+            method: selectedMethod,
+            reference: reference || "Balance cleared",
+            receivedById: ctx.userId,
+          },
+        });
+      }
+
+      if (allocations.length === 0) {
+        await tx.customerPayment.create({
+          data: {
+            organizationId: ctx.organizationId,
+            customerId: customer.id,
+            amount: "0.00",
+            method: selectedMethod,
+            reference: reference || "Balance cleared",
+            receivedById: ctx.userId,
+          },
+        });
+      }
     });
 
     await recordAudit({ organizationId: ctx.organizationId, userId: ctx.userId, action: "CUSTOMER_CREDIT_CLEARED", entityType: "Customer", entityId: customer.id, metadata: { clearedAmount: balance.toFixed(2) } });
@@ -68,13 +93,23 @@ export async function recordCustomerPayment(raw: unknown): Promise<ActionResult<
     const parsed = customerPaymentSchema.safeParse(raw); if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid payment." };
     const input = parsed.data; const customer = await ctx.db.customer.findFirst({ where: { id: input.customerId } });
     if (!customer) return { ok: false, error: "Customer not found." };
-    const creditSales = await ctx.db.sale.findMany({ where: { customerId: customer.id, isCreditSale: true, status: "COMPLETED" }, select: { total: true, amountPaid: true } });
+    const creditSales = await ctx.db.sale.findMany({ where: { customerId: customer.id, isCreditSale: true, status: "COMPLETED" }, select: { id: true, total: true, amountPaid: true, createdAt: true }, orderBy: { createdAt: "asc" } });
     const balance = creditSales.reduce((sum, sale) => sum.plus(sale.total.toString()).minus(sale.amountPaid.toString()), new Decimal(0));
-    const payments = await ctx.db.customerPayment.findMany({ where: { customerId: customer.id }, select: { amount: true } });
-    const outstanding = balance.minus(payments.reduce((sum, payment) => sum.plus(payment.amount.toString()), new Decimal(0)));
-    const amount = new Decimal(input.amount); if (amount.greaterThan(outstanding)) return { ok: false, error: "Payment cannot exceed the outstanding balance." };
-    await ctx.db.customerPayment.create({ data: { organizationId: ctx.organizationId, customerId: customer.id, amount: input.amount, method: input.method, reference: input.reference || null, receivedById: ctx.userId } });
-    revalidatePath("/dashboard/customers"); return { ok: true, data: undefined };
+    const amount = new Decimal(input.amount); if (amount.greaterThan(balance)) return { ok: false, error: "Payment cannot exceed the outstanding balance." };
+
+    const allocations = allocatePaymentToSales({ sales: creditSales, paymentAmount: input.amount });
+
+    await ctx.db.$transaction(async (tx) => {
+      for (const allocation of allocations) {
+        const sale = creditSales.find((entry) => entry.id === allocation.saleId);
+        if (!sale) continue;
+        const nextAmountPaid = new Decimal(sale.amountPaid.toString()).plus(new Decimal(allocation.amount));
+        await tx.sale.update({ where: { id: sale.id }, data: { amountPaid: nextAmountPaid.toFixed(2) } });
+        await tx.customerPayment.create({ data: { organizationId: ctx.organizationId, customerId: customer.id, saleId: sale.id, amount: allocation.amount, method: input.method, reference: input.reference || null, receivedById: ctx.userId } });
+      }
+    });
+
+    revalidatePath("/dashboard/customers"); revalidatePath("/dashboard/credit"); return { ok: true, data: undefined };
   } catch (e) { if (e instanceof AuthError) return { ok: false, error: e.message }; throw e; }
 }
 

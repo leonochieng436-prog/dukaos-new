@@ -98,14 +98,10 @@ export default async function DashboardPage({
       (sum, sale) => sum.plus(new Decimal(String(sale.total)).minus(new Decimal(String(sale.amountPaid)))),
       new Decimal(0),
     );
-    const payments = customer.payments.reduce(
-      (sum, payment) => sum.plus(new Decimal(String(payment.amount))),
-      new Decimal(0),
-    );
     return {
       customerId: customer.id,
       customerName: customer.name,
-      balance: salesOutstanding.minus(payments),
+      balance: salesOutstanding,
     };
   });
   const openCreditCustomers = creditBalances.filter((entry) => entry.balance.gt(0));

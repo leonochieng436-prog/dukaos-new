@@ -17,6 +17,7 @@ export function PosForm({ branches, warehouses, registers, variants, customers, 
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const activeBranchId = activeSession?.branchId ?? branches[0]?.id ?? "";
   const activeRegisterId = activeSession?.registerId ?? registers.find((item) => item.branchId === activeBranchId)?.id ?? "";
   const [branchId, setBranchId] = useState(activeBranchId);
@@ -103,12 +104,48 @@ export function PosForm({ branches, warehouses, registers, variants, customers, 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setSuccess("");
+    const creditSale = paymentMethod === "CREDIT" || (splitPayment && (paymentMethod === "CREDIT" || secondPaymentMethod === "CREDIT"));
+    if (creditSale && !customerId) {
+      setError("Select or add a customer before completing a credit sale.");
+      return;
+    }
+
+    const paymentEntries: Array<{ method: "CASH" | "MPESA" | "CARD" | "BANK_TRANSFER" | "CREDIT" | "OTHER"; amount: string }> = [];
+    if (splitPayment) {
+      if (paymentMethod !== "CREDIT") paymentEntries.push({ method: paymentMethod, amount: amountPaid || "0" });
+      if (secondPaymentMethod !== "CREDIT") paymentEntries.push({ method: secondPaymentMethod, amount: secondPaymentAmount || "0" });
+      const cashTotal = paymentEntries.reduce((sum, entry) => sum.plus(entry.amount), new Decimal(0));
+      if (paymentMethod === "CREDIT" || secondPaymentMethod === "CREDIT") {
+        paymentEntries.push({ method: "CREDIT", amount: Decimal.max(total.minus(cashTotal), 0).toFixed(2) });
+      }
+    } else if (paymentMethod === "CREDIT") {
+      paymentEntries.push({ method: "CREDIT", amount: total.toFixed(2) });
+    } else {
+      paymentEntries.push({ method: paymentMethod, amount: amountPaid || total.toString() });
+    }
+
     const data = new FormData(event.currentTarget);
-    const payload = { branchId: resolvedBranchId, registerId: activeSession ? activeSession.registerId : String(data.get("registerId") || resolvedRegisterId), warehouseId, customerId, paymentMethod, amountPaid: amountPaid || total.toString(), payments: splitPayment ? [{ method: paymentMethod, amount: amountPaid || "0" }, { method: secondPaymentMethod, amount: secondPaymentAmount || "0" }] : undefined, items: cart.map((line) => ({ variantId: line.variantId, quantity: String(line.quantity) })) };
+    const payload = {
+      branchId: resolvedBranchId,
+      registerId: activeSession ? activeSession.registerId : String(data.get("registerId") || resolvedRegisterId),
+      warehouseId,
+      customerId,
+      paymentMethod: creditSale ? "CREDIT" : paymentMethod,
+      amountPaid: paymentEntries.filter((entry) => entry.method !== "CREDIT").reduce((sum, entry) => sum.plus(entry.amount), new Decimal(0)).toFixed(2),
+      payments: paymentEntries,
+      items: cart.map((line) => ({ variantId: line.variantId, quantity: String(line.quantity) })),
+    };
     startTransition(async () => {
       const result = await createSale(payload);
       if (!result.ok) return setError(result.error);
-      setCart([]); setAmountPaid(""); setSecondPaymentAmount(""); setSplitPayment(false); setCustomerId(""); router.push(`/dashboard/pos/receipts/${result.data.id}`);
+      setCart([]); setAmountPaid(""); setSecondPaymentAmount(""); setSplitPayment(false); setCustomerId("");
+      if (creditSale) {
+        setSuccess("Credit sale saved and added to the credit ledger. You can continue with the next sale.");
+        router.refresh();
+        return;
+      }
+      router.push(`/dashboard/pos/receipts/${result.data.id}`);
     });
   }
 
@@ -131,11 +168,11 @@ export function PosForm({ branches, warehouses, registers, variants, customers, 
         <div className="max-h-[310px] min-h-[120px] overflow-y-auto px-5">{cartLines.length === 0 ? <div className="flex min-h-[150px] flex-col items-center justify-center text-center"><ShoppingCart size={24} className="text-border-strong" /><p className="mt-3 text-sm font-medium text-muted-foreground">Your sale is empty</p><p className="mt-1 text-[12px] text-muted-foreground">Select products from the catalog</p></div> : cartLines.map((line) => <div key={line.variantId} className="flex gap-3 border-b border-border py-3 last:border-0"><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{line.variant.label}</p><p className="mt-1 font-tabular text-[12px] text-muted-foreground">KES {new Decimal(line.variant.price).toFixed(2)} each</p><div className="mt-2 flex items-center gap-2"><button type="button" onClick={() => adjustQuantity(line.variantId, -1)} className="grid h-6 w-6 place-items-center rounded border border-border-strong text-muted-foreground hover:border-primary hover:text-primary"><Minus size={13} /></button><Input aria-label={`Quantity for ${line.variant.label}`} value={line.quantity} onChange={(event) => setQuantity(line.variantId, event.target.value)} type="number" min="0" max={stockFor(line.variant).toString()} step="1" className="h-6 w-12 px-1 text-center text-xs" /><button type="button" onClick={() => adjustQuantity(line.variantId, 1)} className="grid h-6 w-6 place-items-center rounded border border-border-strong text-muted-foreground hover:border-primary hover:text-primary"><Plus size={13} /></button><button type="button" onClick={() => setCart((current) => current.filter((item) => item.variantId !== line.variantId))} className="ml-1 text-muted-foreground hover:text-danger"><Trash2 size={14} /></button></div></div><p className="font-tabular text-sm font-semibold">KES {new Decimal(line.variant.price).times(line.quantity).toFixed(2)}</p></div>)}</div>
         <div className="border-t border-border px-5 py-4"><div className="space-y-2 text-sm"><div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="font-tabular">KES {total.toFixed(2)}</span></div><div className="flex justify-between text-muted-foreground"><span>Tax</span><span className="font-tabular">KES 0.00</span></div><div className="mt-3 flex items-end justify-between border-t border-border pt-3"><span className="font-semibold">Total</span><span className="font-tabular text-2xl font-bold text-primary">KES {total.toFixed(2)}</span></div></div>
           <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">{!activeSession && <select name="registerId" value={registerId} onChange={(event) => setRegisterId(event.target.value)} required className="h-9 rounded border border-border-strong bg-surface px-2 text-sm"><option value="">Register...</option>{visibleRegisters.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}{activeSession && <div className="rounded border border-border-strong bg-surface-muted px-2 py-2 text-sm"><span className="text-muted-foreground">Register</span><p className="mt-1 font-medium">{registers.find((item) => item.id === activeSession.registerId)?.name ?? "Current register"}</p></div>}<select name="warehouseId" value={warehouseId} onChange={(event) => { setWarehouseId(event.target.value); setCart([]); }} required className="h-9 rounded border border-border-strong bg-surface px-2 text-sm"><option value="">Warehouse...</option>{visibleWarehouses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>{!activeSession && <select value={branchId} onChange={(event) => { const nextBranchId = event.target.value; setBranchId(nextBranchId); setRegisterId(registers.find((item) => item.branchId === nextBranchId)?.id ?? ""); setWarehouseId(warehouses.find((item) => item.branchId === nextBranchId)?.id ?? ""); setCart([]); }} className="h-9 rounded border border-border-strong bg-surface px-2 text-sm"><option value="">Branch...</option>{branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}{activeSession && <div className="rounded border border-border-strong bg-surface-muted px-2 py-2 text-sm"><span className="text-muted-foreground">Branch</span><p className="mt-1 font-medium">{branches.find((item) => item.id === activeSession.branchId)?.name ?? "Current branch"}</p></div>}<select value={customerId} onChange={(event) => setCustomerId(event.target.value)} className="h-9 rounded border border-border-strong bg-surface px-2 text-sm"><option value="">Walk-in customer</option>{customers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
-          <div className="mt-4"><p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Payment method</p><div className="grid grid-cols-2 gap-2">{(["CASH", "MPESA", "CARD", "BANK_TRANSFER", "CREDIT"] as const).map((method) => <button key={method} type="button" onClick={() => setPaymentMethod(method)} className={`rounded border px-2 py-2 text-[11px] font-semibold ${paymentMethod === method ? "border-primary bg-primary-tint text-primary" : "border-border-strong text-muted-foreground hover:border-primary"}`}>{method === "BANK_TRANSFER" ? "Bank" : method === "MPESA" ? "M-Pesa" : method[0] + method.slice(1).toLowerCase()}</button>)}</div></div>
+          <div className="mt-4"><p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Payment method</p><div className="grid grid-cols-2 gap-2">{(["CASH", "MPESA", "CARD", "BANK_TRANSFER", "CREDIT"] as const).map((method) => <button key={method} type="button" onClick={() => setPaymentMethod(method)} className={`rounded border px-2 py-2 text-[11px] font-semibold ${paymentMethod === method ? "border-primary bg-primary-tint text-primary" : "border-border-strong text-muted-foreground hover:border-primary"}`}>{method === "BANK_TRANSFER" ? "Bank" : method === "MPESA" ? "M-Pesa" : method === "CREDIT" ? "Credit sale" : method[0] + method.slice(1).toLowerCase()}</button>)}</div>{paymentMethod === "CREDIT" && <p className="mt-2 text-[11px] text-muted-foreground">This sale will be added to the credit ledger when payment is completed.</p>}</div>
           <Input name="amountPaid" value={amountPaid} onChange={(event) => setAmountPaid(event.target.value)} type="number" min="0" step="0.01" placeholder={`Amount received · KES ${total.toFixed(2)}`} className="mt-3" required={paymentMethod !== "CREDIT"} />
           <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={splitPayment} onChange={(event) => setSplitPayment(event.target.checked)} /> Use two payment methods</label>
           {splitPayment && <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-1"><select value={secondPaymentMethod} onChange={(event) => setSecondPaymentMethod(event.target.value as typeof paymentMethod)} className="h-9 rounded border border-border-strong bg-surface px-2 text-sm">{(["CASH", "MPESA", "CARD", "BANK_TRANSFER", "CREDIT"] as const).map((method) => <option key={method} value={method}>{method === "BANK_TRANSFER" ? "Bank transfer" : method === "MPESA" ? "M-Pesa" : method[0] + method.slice(1).toLowerCase()}</option>)}</select><Input value={secondPaymentAmount} onChange={(event) => setSecondPaymentAmount(event.target.value)} type="number" min="0" step="0.01" placeholder="Second payment amount" /></div>}
-          {paymentMethod === "CASH" && receivedTotal.greaterThanOrEqualTo(total) && <div className="mt-2 flex justify-between rounded border border-success/20 bg-success-tint px-3 py-2 text-sm text-success"><span>Change</span><strong className="font-tabular">KES {change.toFixed(2)}</strong></div>}{error && <p className="mt-3 rounded border border-danger/20 bg-danger-tint px-3 py-2 text-[12px] text-danger">{error}</p>}<div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-1"><Button type="button" variant="secondary" onClick={previewReceipt} disabled={cartLines.length === 0} className="h-11 text-sm font-semibold">View receipt</Button><Button type="submit" disabled={pending || cartLines.length === 0 || receivedTotal.lessThan(total) && ![paymentMethod, secondPaymentMethod].includes("CREDIT")} className="h-12 text-sm font-semibold">{pending ? "Completing sale..." : `Complete sale · KES ${total.toFixed(2)}`}<ArrowRight size={16} /></Button></div>
+          {paymentMethod === "CASH" && receivedTotal.greaterThanOrEqualTo(total) && <div className="mt-2 flex justify-between rounded border border-success/20 bg-success-tint px-3 py-2 text-sm text-success"><span>Change</span><strong className="font-tabular">KES {change.toFixed(2)}</strong></div>}{error && <p className="mt-3 rounded border border-danger/20 bg-danger-tint px-3 py-2 text-[12px] text-danger">{error}</p>}{success && <p className="mt-3 rounded border border-success/20 bg-success-tint px-3 py-2 text-[12px] text-success">{success}</p>}<div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-1"><Button type="button" variant="secondary" onClick={previewReceipt} disabled={cartLines.length === 0} className="h-11 text-sm font-semibold">View receipt</Button><Button type="submit" disabled={pending || cartLines.length === 0 || receivedTotal.lessThan(total) && ![paymentMethod, secondPaymentMethod].includes("CREDIT")} className="h-12 text-sm font-semibold">{pending ? "Completing sale..." : `Complete sale · KES ${total.toFixed(2)}`}<ArrowRight size={16} /></Button></div>
         </div>
       </aside>
     </form>
