@@ -28,6 +28,10 @@ export async function clearCustomerBalance(raw: unknown): Promise<ActionResult<u
     const customerId = typeof data === "object" && data && "customerId" in data ? String(data.customerId ?? "") : "";
     const method = typeof data === "object" && data && "method" in data ? String(data.method ?? "cash") : "cash";
     const reference = typeof data === "object" && data && "reference" in data ? String(data.reference ?? "") : "";
+    const amount = typeof data === "object" && data && "amount" in data ? String(data.amount ?? "") : "";
+    const splitMethod = typeof data === "object" && data && "splitMethod" in data ? String(data.splitMethod ?? "") : "";
+    const splitAmount = typeof data === "object" && data && "splitAmount" in data ? String(data.splitAmount ?? "") : "";
+
     if (!customerId) return { ok: false, error: "Select a customer to clear." };
 
     const customer = await ctx.db.customer.findUnique({ where: { id: customerId } });
@@ -42,28 +46,90 @@ export async function clearCustomerBalance(raw: unknown): Promise<ActionResult<u
 
     if (balance.lte(0)) return { ok: false, error: "This customer already has no outstanding balance." };
 
-    const allocations = allocatePaymentToSales({ sales: creditSales, paymentAmount: balance.toFixed(2) });
+    // Determine payment amount: use provided amount or full balance
+    const paymentAmount = amount ? new Decimal(amount) : balance;
+    if (paymentAmount.gt(balance)) return { ok: false, error: "Payment amount exceeds outstanding balance." };
 
     const selectedMethod = ["cash", "mpesa", "bank", "card", "other"].includes(method) ? method : "cash";
+    const selectedSplitMethod = splitMethod && ["cash", "mpesa", "bank", "card", "other"].includes(splitMethod) ? splitMethod : null;
+
+    // Handle split payment
+    let firstMethodAmount = paymentAmount;
+    let secondMethodAmount = new Decimal(0);
+
+    if (selectedSplitMethod && splitAmount) {
+      const splitAmountDecimal = new Decimal(splitAmount);
+      if (splitAmountDecimal.plus(new Decimal(firstMethodAmount)).gt(paymentAmount)) {
+        return { ok: false, error: "Split amounts exceed the total payment amount." };
+      }
+      firstMethodAmount = paymentAmount.minus(splitAmountDecimal);
+      secondMethodAmount = splitAmountDecimal;
+    }
+
+    const allocations = allocatePaymentToSales({ sales: creditSales, paymentAmount: paymentAmount.toFixed(2) });
 
     await ctx.db.$transaction(async (tx) => {
       for (const allocation of allocations) {
         const sale = creditSales.find((entry) => entry.id === allocation.saleId);
         if (!sale) continue;
 
-        const nextAmountPaid = new Decimal(sale.amountPaid.toString()).plus(new Decimal(allocation.amount));
-        await tx.sale.update({ where: { id: sale.id }, data: { amountPaid: nextAmountPaid.toFixed(2) } });
-        await tx.customerPayment.create({
-          data: {
-            organizationId: ctx.organizationId,
-            customerId: customer.id,
-            saleId: sale.id,
-            amount: allocation.amount,
-            method: selectedMethod,
-            reference: reference || "Balance cleared",
-            receivedById: ctx.userId,
-          },
-        });
+        // Split allocation between methods if split payment is enabled
+        if (selectedSplitMethod && secondMethodAmount.gt(0)) {
+          const allocatedAmount = new Decimal(allocation.amount);
+          
+          // First portion with first method
+          if (firstMethodAmount.gt(0)) {
+            const firstPortionAmount = Decimal.min(allocatedAmount, firstMethodAmount);
+            const nextAmountPaid = new Decimal(sale.amountPaid.toString()).plus(firstPortionAmount);
+            await tx.sale.update({ where: { id: sale.id }, data: { amountPaid: nextAmountPaid.toFixed(2) } });
+            await tx.customerPayment.create({
+              data: {
+                organizationId: ctx.organizationId,
+                customerId: customer.id,
+                saleId: sale.id,
+                amount: firstPortionAmount.toFixed(2),
+                method: selectedMethod,
+                reference: reference || "Balance cleared (payment 1/2)",
+                receivedById: ctx.userId,
+              },
+            });
+            firstMethodAmount = firstMethodAmount.minus(firstPortionAmount);
+          }
+
+          // Second portion with second method
+          const secondPortionAmount = allocatedAmount.minus(firstMethodAmount.gt(0) ? Decimal.min(allocatedAmount, firstMethodAmount) : new Decimal(0));
+          if (secondPortionAmount.gt(0) && secondMethodAmount.gt(0)) {
+            const nextAmountPaid = new Decimal(sale.amountPaid.toString()).plus(secondPortionAmount);
+            await tx.sale.update({ where: { id: sale.id }, data: { amountPaid: nextAmountPaid.toFixed(2) } });
+            await tx.customerPayment.create({
+              data: {
+                organizationId: ctx.organizationId,
+                customerId: customer.id,
+                saleId: sale.id,
+                amount: secondPortionAmount.toFixed(2),
+                method: selectedSplitMethod,
+                reference: reference || "Balance cleared (payment 2/2)",
+                receivedById: ctx.userId,
+              },
+            });
+            secondMethodAmount = secondMethodAmount.minus(secondPortionAmount);
+          }
+        } else {
+          // Single payment method
+          const nextAmountPaid = new Decimal(sale.amountPaid.toString()).plus(new Decimal(allocation.amount));
+          await tx.sale.update({ where: { id: sale.id }, data: { amountPaid: nextAmountPaid.toFixed(2) } });
+          await tx.customerPayment.create({
+            data: {
+              organizationId: ctx.organizationId,
+              customerId: customer.id,
+              saleId: sale.id,
+              amount: allocation.amount,
+              method: selectedMethod,
+              reference: reference || "Balance cleared",
+              receivedById: ctx.userId,
+            },
+          });
+        }
       }
 
       if (allocations.length === 0) {
@@ -71,7 +137,7 @@ export async function clearCustomerBalance(raw: unknown): Promise<ActionResult<u
           data: {
             organizationId: ctx.organizationId,
             customerId: customer.id,
-            amount: "0.00",
+            amount: paymentAmount.toFixed(2),
             method: selectedMethod,
             reference: reference || "Balance cleared",
             receivedById: ctx.userId,
@@ -80,9 +146,11 @@ export async function clearCustomerBalance(raw: unknown): Promise<ActionResult<u
       }
     });
 
-    await recordAudit({ organizationId: ctx.organizationId, userId: ctx.userId, action: "CUSTOMER_CREDIT_CLEARED", entityType: "Customer", entityId: customer.id, metadata: { clearedAmount: balance.toFixed(2) } });
+    await recordAudit({ organizationId: ctx.organizationId, userId: ctx.userId, action: "CUSTOMER_CREDIT_CLEARED", entityType: "Customer", entityId: customer.id, metadata: { clearedAmount: paymentAmount.toFixed(2), splitPayment: selectedSplitMethod ? true : false } });
     revalidatePath("/dashboard/customers");
     revalidatePath("/dashboard/credit");
+    revalidatePath("/dashboard/pos");
+    revalidatePath("/dashboard");
     return { ok: true, data: undefined };
   } catch (e) { if (e instanceof AuthError) return { ok: false, error: e.message }; return { ok: false, error: e instanceof Error ? e.message : "Could not clear the customer balance." }; }
 }

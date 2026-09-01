@@ -65,9 +65,6 @@ export async function createSale(raw: unknown): Promise<ActionResult<{ id: strin
       if (input.customerId && payments.some((payment) => payment.method === "CREDIT")) {
         const customer = await tx.customer.findFirst({ where: { id: input.customerId, organizationId: ctx.organizationId } });
         if (!customer) throw new Error("Customer not found.");
-        const existingCredit = await tx.sale.aggregate({ where: { customerId: customer.id, isCreditSale: true, status: "COMPLETED" }, _sum: { total: true, amountPaid: true } });
-        const outstanding = new Decimal(existingCredit._sum.total?.toString() ?? 0).minus(existingCredit._sum.amountPaid?.toString() ?? 0);
-        if (outstanding.plus(subtotal.minus(cashPaid)).greaterThan(customer.creditLimit.toString())) throw new Error("This sale would exceed the customer's credit limit.");
       }
       const session = await tx.cashSession.findFirst({ where: { registerId: register.id, branchId: branch.id, organizationId: ctx.organizationId, status: "OPEN" } });
       if (!session) throw new Error("Open the register before completing a sale.");

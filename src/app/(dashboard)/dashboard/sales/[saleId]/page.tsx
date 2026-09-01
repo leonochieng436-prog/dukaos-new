@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CreditCard, ReceiptText, RotateCcw, ShieldAlert, Tag } from "lucide-react";
 import { requireAuthContext } from "@/server/auth/context";
-import { correctSale, refundSale, voidSale } from "@/app/actions/sales";
+import { correctSale, voidSale } from "@/app/actions/sales";
 import { buildSaleVersionTimeline } from "@/lib/sales";
+import { RefundSaleModalForm } from "@/components/settlement-modals";
 
 const money = new Intl.NumberFormat("en-KE", {
   style: "currency",
@@ -201,24 +202,7 @@ export default async function SalesDetailPage({ params }: { params: Promise<{ sa
           <div className="rounded-[var(--radius-lg)] border border-border bg-surface p-5 shadow-[0_8px_24px_rgba(18,23,26,0.04)]">
             <h2 className="text-lg font-semibold">Actions</h2>
             <div className="mt-4 space-y-3">
-              <form action={refundSale} className="space-y-3 rounded-[var(--radius-md)] border border-border bg-surface-muted p-3">
-                <input type="hidden" name="saleId" value={sale.id} />
-                <div>
-                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Refund reason</label>
-                  <input name="reason" placeholder="Customer requested refund" className="h-9 w-full rounded-[var(--radius-sm)] border border-border-strong bg-surface px-3 text-sm" />
-                </div>
-                <div>
-                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Refund method</label>
-                  <select name="refundMethod" defaultValue="original_payment_method" className="h-9 w-full rounded-[var(--radius-sm)] border border-border-strong bg-surface px-3 text-sm">
-                    <option value="cash">Cash</option>
-                    <option value="store_credit">Store credit</option>
-                    <option value="original_payment_method">Original payment method</option>
-                  </select>
-                </div>
-                <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-warning px-3 py-2 text-sm font-semibold text-warning-foreground">
-                  <RotateCcw size={15} /> Refund sale
-                </button>
-              </form>
+              <RefundSaleModalForm saleId={sale.id} />
 
               <form action={voidSale} className="space-y-3 rounded-[var(--radius-md)] border border-border bg-surface-muted p-3">
                 <input type="hidden" name="saleId" value={sale.id} />

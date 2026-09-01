@@ -125,7 +125,7 @@ export default async function CreditPage() {
                         <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Outstanding</p>
                         <p className="font-tabular text-lg font-semibold">{money.format(balance.toNumber())}</p>
                       </div>
-                      <ClearCustomerBalanceForm customerId={customer.id} customerName={customer.name} />
+                      <ClearCustomerBalanceForm customerId={customer.id} customerName={customer.name} balance={balance.toNumber()} />
                     </div>
                   </div>
                 ))}
