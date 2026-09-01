@@ -26,12 +26,21 @@ export default async function PurchasesPage({
   const params = searchParams ? await searchParams : {};
   const query = typeof params.q === "string" ? params.q.trim() : "";
   const status = typeof params.status === "string" ? params.status : "";
-  const [suppliers, branches, warehouses, variants, orders, invoices, allInvoices, paidOrders] = await Promise.all([
+  const [suppliers, branches, warehouses, variants, orders, goodsReceipts, invoices, allInvoices, paidOrders] = await Promise.all([
     ctx.db.supplier.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
     ctx.db.branch.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
     ctx.db.warehouse.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
     ctx.db.productVariant.findMany({ where: { isActive: true, product: { isActive: true, organizationId: ctx.organizationId } }, include: { product: true }, orderBy: { product: { name: "asc" } } }),
     ctx.db.purchaseOrder.findMany({ where: { ...(status ? { status: status as "DRAFT" | "SENT" | "PARTIALLY_RECEIVED" | "RECEIVED" | "CANCELLED" } : {}), ...(query ? { OR: [{ poNumber: { contains: query, mode: "insensitive" } }, { supplier: { name: { contains: query, mode: "insensitive" } } }] } : {}) }, include: { supplier: true, branch: true, warehouse: true, items: { include: { variant: { include: { product: true } } } } }, orderBy: { createdAt: "desc" } }),
+    ctx.db.goodsReceipt.findMany({
+      where: { purchaseOrder: { organizationId: ctx.organizationId } },
+      include: {
+        purchaseOrder: { include: { supplier: true } },
+        items: { include: { purchaseOrderItem: { include: { variant: { include: { product: true } } } } } },
+      },
+      orderBy: { receivedAt: "desc" },
+      take: 8,
+    }),
     ctx.db.supplierInvoice.findMany({ where: { status: { not: "PAID" } }, include: { supplier: true }, orderBy: { createdAt: "desc" } }),
     ctx.db.supplierInvoice.findMany({ select: { amount: true, amountPaid: true } }),
     ctx.db.purchaseOrder.findMany({ where: { status: { in: ["DRAFT", "SENT"] } }, select: { id: true } }),
@@ -56,9 +65,46 @@ export default async function PurchasesPage({
       <nav className="flex gap-5 overflow-x-auto border-b border-border pb-3 text-sm" aria-label="Purchases navigation"><a className="border-b-2 border-primary pb-3 font-semibold text-primary" href="/dashboard/purchases">Overview</a><a className="whitespace-nowrap text-muted-foreground hover:text-foreground" href="#orders">Purchase orders</a><a className="whitespace-nowrap text-muted-foreground hover:text-foreground" href="#receiving">Goods received</a><a className="whitespace-nowrap text-muted-foreground hover:text-foreground" href="#invoices">Invoices & payments</a><a className="whitespace-nowrap text-muted-foreground hover:text-foreground" href="#suppliers">Suppliers</a></nav>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{kpis.map((item) => { const Icon = item.icon; return <Card key={item.label}><CardContent className="p-4"><div className="flex items-center justify-between"><p className="text-[12px] text-muted-foreground">{item.label}</p><Icon size={17} className="text-primary" /></div><p className="mt-4 text-xl font-semibold font-tabular">{item.value}</p><p className="mt-1 text-[12px] text-muted-foreground">{item.detail}</p></CardContent></Card>; })}</div>
       <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
-        <Card id="orders"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><div><CardTitle>Purchase orders</CardTitle><p className="mt-1 text-[12px] text-muted-foreground">{orders.length} matching orders</p></div><form className="flex gap-2" method="get"><input name="q" defaultValue={query} placeholder="Search PO or supplier" className="h-9 w-48 rounded-[var(--radius-sm)] border border-border-strong bg-surface px-3 text-sm" /><select name="status" defaultValue={status} className="h-9 rounded-[var(--radius-sm)] border border-border-strong bg-surface px-2 text-sm"><option value="">All statuses</option><option value="DRAFT">Draft</option><option value="SENT">Ordered</option><option value="PARTIALLY_RECEIVED">Partially received</option><option value="RECEIVED">Received</option><option value="CANCELLED">Cancelled</option></select><button className="h-9 rounded-[var(--radius-sm)] border border-border px-3 text-sm hover:bg-surface-muted">Filter</button></form></div></CardHeader><CardContent className="p-0"><div className="hidden grid-cols-[1.1fr_1.2fr_1fr_0.8fr_0.9fr] gap-3 border-y border-border bg-surface-muted px-5 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground md:grid"><span>Order</span><span>Supplier</span><span>Location</span><span>Status</span><span className="text-right">Total</span></div>{orders.length === 0 ? <p className="p-5 text-sm text-muted-foreground">No purchase orders match this view.</p> : orders.map((order) => <div key={order.id} className="grid gap-2 border-b border-border px-5 py-4 last:border-0 md:grid-cols-[1.1fr_1.2fr_1fr_0.8fr_0.9fr] md:items-center md:gap-3"><div><p className="text-sm font-semibold">{order.poNumber}</p><p className="text-[12px] text-muted-foreground">{order.createdAt.toLocaleDateString("en-KE")}</p></div><p className="text-sm">{order.supplier.name}</p><p className="text-[12px] text-muted-foreground">{order.branch.name} · {order.warehouse.name}</p><Badge variant={statusVariant(order.status)}>{order.status.replaceAll("_", " ")}</Badge><p className="text-right text-sm font-semibold font-tabular">{money.format(Number(order.total))}</p></div>)}</CardContent></Card>
+        <Card id="orders"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><div><CardTitle>Purchase orders</CardTitle><p className="mt-1 text-[12px] text-muted-foreground">{orders.length} matching orders</p></div><form className="flex gap-2" method="get"><input name="q" defaultValue={query} placeholder="Search PO or supplier" className="h-9 w-48 rounded-[var(--radius-sm)] border border-border-strong bg-surface px-3 text-sm" /><select name="status" defaultValue={status} className="h-9 rounded-[var(--radius-sm)] border border-border-strong bg-surface px-2 text-sm"><option value="">All statuses</option><option value="DRAFT">Draft</option><option value="SENT">Ordered</option><option value="PARTIALLY_RECEIVED">Partially received</option><option value="RECEIVED">Received</option><option value="CANCELLED">Cancelled</option></select><button className="h-9 rounded-[var(--radius-sm)] border border-border px-3 text-sm hover:bg-surface-muted">Filter</button></form></div></CardHeader><CardContent className="p-0"><div className="hidden grid-cols-[1.1fr_1.2fr_1fr_0.8fr_0.9fr] gap-3 border-y border-border bg-surface-muted px-5 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground md:grid"><span>Order</span><span>Supplier</span><span>Location</span><span>Status</span><span className="text-right">Total</span></div>{orders.length === 0 ? <p className="p-5 text-sm text-muted-foreground">No purchase orders match this view.</p> : orders.map((order) => <div key={order.id} className="grid gap-2 border-b border-border px-5 py-4 last:border-0 md:grid-cols-[1.1fr_1.2fr_1fr_0.8fr_0.9fr] md:items-center md:gap-3"><div><p className="text-sm font-semibold">{order.poNumber}</p><p className="text-[12px] text-muted-foreground">{order.createdAt.toLocaleDateString("en-KE")}</p></div><p className="text-sm">{order.supplier.name}</p><p className="text-[12px] text-muted-foreground">{order.branch.name} · {order.warehouse.name}</p><Badge variant={statusVariant(order.status)}>{order.status.replaceAll("_", " ")}</Badge><p className="text-right text-sm font-semibold font-tabular">{money.format(Number(order.total))}</p></div>)} </CardContent></Card>
         <Card id="receiving"><CardHeader><CardTitle>Receiving queue</CardTitle><p className="text-[12px] text-muted-foreground">Orders with stock still to receive</p></CardHeader><CardContent>{awaitingReceipt === 0 ? <p className="text-sm text-muted-foreground">Everything is fully received.</p> : <div className="space-y-3"><div className="flex items-center gap-3 rounded-[var(--radius-sm)] bg-warning-tint px-3 py-3"><Truck size={18} className="text-warning" /><div><p className="text-sm font-semibold">{awaitingReceipt} awaiting receipt</p><p className="text-[12px] text-muted-foreground">Receive stock to update inventory.</p></div></div><a href="#receiving-forms" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">Open receiving forms <ArrowUpRight size={14} /></a></div>}</CardContent></Card>
       </div>
+      <Card id="receiving-history">
+        <CardHeader>
+          <CardTitle>Goods received</CardTitle>
+          <p className="text-[12px] text-muted-foreground">Recent purchase receipts recorded into stock.</p>
+        </CardHeader>
+        <CardContent className="p-0">
+          {goodsReceipts.length === 0 ? (
+            <p className="px-5 py-4 text-sm text-muted-foreground">No goods received yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <div className="min-w-[760px]">
+                <div className="grid grid-cols-[1.1fr_1.4fr_1.8fr_0.7fr_0.9fr] gap-3 border-y border-border bg-surface-muted px-5 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <span>PO</span>
+                  <span>Supplier</span>
+                  <span>Product</span>
+                  <span>Qty</span>
+                  <span>Date</span>
+                </div>
+                {goodsReceipts.flatMap((receipt) =>
+                  receipt.items.map((item) => {
+                    const productLabel = `${item.purchaseOrderItem.variant.product.name}${item.purchaseOrderItem.variant.name !== item.purchaseOrderItem.variant.product.name ? ` - ${item.purchaseOrderItem.variant.name}` : ""}`;
+                    return (
+                      <div key={item.id} className="grid grid-cols-[1.1fr_1.4fr_1.8fr_0.7fr_0.9fr] gap-3 border-b border-border px-5 py-3 text-sm last:border-0">
+                        <div className="font-medium text-foreground">{receipt.purchaseOrder.poNumber}</div>
+                        <div className="text-muted-foreground">{receipt.purchaseOrder.supplier.name}</div>
+                        <div className="font-medium text-foreground">{productLabel}</div>
+                        <div className="font-tabular text-foreground">{Number(item.quantityReceived).toLocaleString("en-KE", { maximumFractionDigits: 3 })}</div>
+                        <div className="text-muted-foreground">{new Date(receipt.receivedAt).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}</div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
       <div id="suppliers" className="grid gap-6 xl:grid-cols-2"><Card><CardHeader><CardTitle>Suppliers</CardTitle><p className="text-[12px] text-muted-foreground">Active suppliers available for new orders</p></CardHeader><CardContent><div className="flex items-end justify-between"><p className="text-3xl font-semibold font-tabular">{suppliers.length}</p><a href="#new-supplier" className="text-sm font-medium text-primary hover:underline">Add supplier</a></div></CardContent></Card><Card id="invoices"><CardHeader><CardTitle>Invoices & payments</CardTitle><p className="text-[12px] text-muted-foreground">Outstanding supplier balance</p></CardHeader><CardContent><p className="text-3xl font-semibold font-tabular">{money.format(outstanding)}</p><p className="mt-1 text-[12px] text-muted-foreground">Record payments below to keep payables current.</p></CardContent></Card></div>
       <div id="new-supplier"><Card><CardHeader><CardTitle>Add supplier</CardTitle></CardHeader><CardContent><SupplierForm /></CardContent></Card></div>
       <div id="new-purchase"><Card><CardHeader><CardTitle>New purchase order</CardTitle><p className="text-[12px] text-muted-foreground">Create an order, then receive goods separately when they arrive.</p></CardHeader><CardContent><PurchaseOrderForm suppliers={suppliers.map((item) => ({ id: item.id, name: item.name }))} branches={branches.map((item) => ({ id: item.id, name: item.name }))} warehouses={warehouses.map((item) => ({ id: item.id, name: item.name, branchId: item.branchId }))} variants={variants.map((item) => ({ id: item.id, label: `${item.product.name}${item.name !== item.product.name ? ` - ${item.name}` : ""} (${item.sku})`, cost: item.costPrice.toString() }))} /></CardContent></Card></div>

@@ -25,6 +25,17 @@ function formatMethod(method: string) {
   }
 }
 
+function getVisiblePaymentMethods(sale: any) {
+  const methods = (sale.payments ?? []).map((payment: any) => payment.method).filter(Boolean);
+
+  if (sale.isCreditSale) {
+    const settledMethods = methods.filter((method: string) => method !== "CREDIT");
+    if (settledMethods.length > 0) return settledMethods;
+  }
+
+  return methods;
+}
+
 function getDisplayStatus(sale: any): string {
   // For credit sales, show settlement status instead of completion status
   if (sale.isCreditSale) {
@@ -203,7 +214,8 @@ export default async function SalesPage({
           <div className="p-6 text-sm text-muted-foreground">No sales match the current search.</div>
         ) : (
           sales.map((sale) => {
-            const paymentLabel = sale.payments.length > 0 ? sale.payments.map((payment) => formatMethod(payment.method)).join(" · ") : "—";
+            const visibleMethods = getVisiblePaymentMethods(sale);
+            const paymentLabel = visibleMethods.length > 0 ? visibleMethods.map((method: string) => formatMethod(method)).join(" · ") : "—";
             const itemCount = sale.items.reduce((sum, item) => sum + Number(item.quantity), 0);
 
             return (

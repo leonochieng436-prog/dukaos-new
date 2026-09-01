@@ -25,6 +25,17 @@ function formatMethod(method: string) {
   }
 }
 
+function getSettlementMethods(sale: { isCreditSale: boolean; payments: { method: string }[] }) {
+  const methods = sale.payments.map((payment) => payment.method);
+
+  if (sale.isCreditSale) {
+    const settledMethods = methods.filter((method) => method !== "CREDIT");
+    if (settledMethods.length > 0) return settledMethods;
+  }
+
+  return methods;
+}
+
 export default async function SalesDetailPage({ params }: { params: Promise<{ saleId: string }> }) {
   const { saleId } = await params;
   const ctx = await requireAuthContext();
@@ -139,7 +150,7 @@ export default async function SalesDetailPage({ params }: { params: Promise<{ sa
               <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Branch</dt><dd>{sale.branch.name}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Register</dt><dd>{sale.register.name}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Customer</dt><dd>{sale.customer?.name ?? "Walk-in"}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Payment</dt><dd>{sale.payments.map((payment) => formatMethod(payment.method)).join(" · ") || "—"}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Payment</dt><dd>{getSettlementMethods(sale).map((method) => formatMethod(method)).join(" · ") || "—"}</dd></div>
             </dl>
           </div>
 

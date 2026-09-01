@@ -92,22 +92,26 @@ export async function receivePurchase(raw: unknown): Promise<ActionResult<undefi
     if (!branch) return { ok: false, error: "Branch not found." };
     assertBranchAccess(ctx, branch.id);
 
-    await ctx.db.$transaction(async (tx) => {
-      const receipt = await tx.goodsReceipt.create({ data: { purchaseOrderId: order.id, receivedById: ctx.userId, notes: input.notes || null } });
-      for (const item of input.items) {
-        const orderItem = order.items.find((candidate) => candidate.id === item.purchaseOrderItemId);
-        if (!orderItem) throw new Error("Purchase order item not found.");
-        const remaining = new Decimal(orderItem.quantityOrdered.toString()).minus(orderItem.quantityReceived.toString());
-        const received = new Decimal(item.quantity);
-        if (received.greaterThan(remaining)) throw new Error(`Cannot receive more than the remaining quantity for ${orderItem.id}.`);
-        await tx.goodsReceiptItem.create({ data: { goodsReceiptId: receipt.id, purchaseOrderItemId: orderItem.id, quantityReceived: item.quantity, batchNumber: item.batchNumber || null, expiryDate: item.expiryDate ? new Date(item.expiryDate) : null } });
-        await increaseStock(tx as unknown as Prisma.TransactionClient, { organizationId: ctx.organizationId, warehouseId: order.warehouseId, variantId: orderItem.variantId, quantity: item.quantity, unitCost: orderItem.unitCost, type: "PURCHASE", referenceType: "PurchaseOrder", referenceId: order.id, createdById: ctx.userId, batchNumber: item.batchNumber || undefined, expiryDate: item.expiryDate ? new Date(item.expiryDate) : undefined });
-        await tx.purchaseOrderItem.update({ where: { id: orderItem.id }, data: { quantityReceived: new Decimal(orderItem.quantityReceived.toString()).plus(received).toFixed(3) } });
-      }
-      const refreshed = await tx.purchaseOrderItem.findMany({ where: { purchaseOrderId: order.id } });
-      const complete = refreshed.every((item) => new Decimal(item.quantityReceived.toString()).greaterThanOrEqualTo(item.quantityOrdered.toString()));
-      await tx.purchaseOrder.update({ where: { id: order.id }, data: { status: complete ? "RECEIVED" : "PARTIALLY_RECEIVED" } });
-    });
+    await ctx.db.$transaction(
+      async (tx) => {
+        const receipt = await tx.goodsReceipt.create({ data: { purchaseOrderId: order.id, receivedById: ctx.userId, notes: input.notes || null } });
+        for (const item of input.items) {
+          const orderItem = order.items.find((candidate) => candidate.id === item.purchaseOrderItemId);
+          if (!orderItem) throw new Error("Purchase order item not found.");
+          const remaining = new Decimal(orderItem.quantityOrdered.toString()).minus(orderItem.quantityReceived.toString());
+          const received = new Decimal(item.quantity);
+          if (received.greaterThan(remaining)) throw new Error(`Cannot receive more than the remaining quantity for ${orderItem.id}.`);
+          const quantityStr = new Decimal(item.quantity).toString();
+          await tx.goodsReceiptItem.create({ data: { goodsReceiptId: receipt.id, purchaseOrderItemId: orderItem.id, quantityReceived: quantityStr, batchNumber: item.batchNumber || null, expiryDate: item.expiryDate ? new Date(item.expiryDate) : null } });
+          await increaseStock(tx as unknown as Prisma.TransactionClient, { organizationId: ctx.organizationId, warehouseId: order.warehouseId, variantId: orderItem.variantId, quantity: quantityStr, unitCost: orderItem.unitCost, type: "PURCHASE", referenceType: "PurchaseOrder", referenceId: order.id, createdById: ctx.userId, batchNumber: item.batchNumber || undefined, expiryDate: item.expiryDate ? new Date(item.expiryDate) : undefined });
+          await tx.purchaseOrderItem.update({ where: { id: orderItem.id }, data: { quantityReceived: new Decimal(orderItem.quantityReceived.toString()).plus(received).toFixed(3) } });
+        }
+        const refreshed = await tx.purchaseOrderItem.findMany({ where: { purchaseOrderId: order.id } });
+        const complete = refreshed.every((item) => new Decimal(item.quantityReceived.toString()).greaterThanOrEqualTo(item.quantityOrdered.toString()));
+        await tx.purchaseOrder.update({ where: { id: order.id }, data: { status: complete ? "RECEIVED" : "PARTIALLY_RECEIVED" } });
+      },
+      { maxWait: 15000, timeout: 30000 }
+    );
     await recordAudit({ organizationId: ctx.organizationId, userId: ctx.userId, action: "PURCHASE_RECEIVED", entityType: "PurchaseOrder", entityId: order.id, metadata: { itemCount: input.items.length } });
     revalidatePath("/dashboard/purchases");
     revalidatePath("/dashboard/inventory");

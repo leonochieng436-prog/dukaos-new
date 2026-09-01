@@ -10,6 +10,64 @@ import { customerSchema, customerPaymentSchema, returnSchema } from "@/lib/valid
 import { allocatePaymentToSales } from "@/lib/credit";
 import type { ActionResult } from "./auth";
 
+async function reconcileSettledCreditSale(
+  tx: Prisma.TransactionClient,
+  saleId: string,
+  actualMethod: string,
+  actualAmount: string,
+  reference?: string | null,
+) {
+  const sale = await tx.sale.findUnique({
+    where: { id: saleId },
+    include: { payments: true },
+  });
+
+  if (!sale) return;
+
+  const total = new Decimal(sale.total.toString());
+  const paid = new Decimal(sale.amountPaid.toString());
+
+  if (paid.lessThan(total)) return;
+
+  const existingCreditPayment = sale.payments.find((payment) => payment.method === "CREDIT");
+  const paymentMethod = actualMethod.toUpperCase();
+
+  if (existingCreditPayment) {
+    await tx.payment.update({
+      where: { id: existingCreditPayment.id },
+      data: {
+        method: paymentMethod as any,
+        amount: actualAmount,
+        status: "CONFIRMED",
+        providerRef: reference || existingCreditPayment.providerRef,
+        metadata: {
+          ...(existingCreditPayment.metadata ?? {}),
+          settledAs: paymentMethod,
+          settledReference: reference || null,
+          settlementAmount: actualAmount,
+        },
+      },
+    });
+    return;
+  }
+
+  await tx.payment.create({
+    data: {
+      organizationId: sale.organizationId,
+      saleId: sale.id,
+      method: paymentMethod as any,
+      amount: actualAmount,
+      status: "CONFIRMED",
+      providerRef: reference || null,
+      metadata: {
+        settledAs: paymentMethod,
+        settledReference: reference || null,
+        settlementAmount: actualAmount,
+      },
+    },
+  });
+}
+
 export async function createCustomer(raw: unknown): Promise<ActionResult<{ id: string }>> {
   try {
     const ctx = await requireAuthContext(); assertPermission(ctx, "CUSTOMERS_MANAGE");
@@ -73,10 +131,13 @@ export async function clearCustomerBalance(raw: unknown): Promise<ActionResult<u
         const sale = creditSales.find((entry) => entry.id === allocation.saleId);
         if (!sale) continue;
 
+        let currentMethod = selectedMethod;
+        let currentAmount = new Decimal(allocation.amount);
+
         // Split allocation between methods if split payment is enabled
         if (selectedSplitMethod && secondMethodAmount.gt(0)) {
           const allocatedAmount = new Decimal(allocation.amount);
-          
+
           // First portion with first method
           if (firstMethodAmount.gt(0)) {
             const firstPortionAmount = Decimal.min(allocatedAmount, firstMethodAmount);
@@ -93,6 +154,16 @@ export async function clearCustomerBalance(raw: unknown): Promise<ActionResult<u
                 receivedById: ctx.userId,
               },
             });
+
+            if (nextAmountPaid.greaterThanOrEqualTo(new Decimal(sale.total.toString()))) {
+              await reconcileSettledCreditSale(
+                tx,
+                sale.id,
+                selectedMethod,
+                firstPortionAmount.toFixed(2),
+                reference || "Balance cleared (payment 1/2)",
+              );
+            }
             firstMethodAmount = firstMethodAmount.minus(firstPortionAmount);
           }
 
@@ -112,6 +183,16 @@ export async function clearCustomerBalance(raw: unknown): Promise<ActionResult<u
                 receivedById: ctx.userId,
               },
             });
+
+            if (nextAmountPaid.greaterThanOrEqualTo(new Decimal(sale.total.toString()))) {
+              await reconcileSettledCreditSale(
+                tx,
+                sale.id,
+                selectedSplitMethod,
+                secondPortionAmount.toFixed(2),
+                reference || "Balance cleared (payment 2/2)",
+              );
+            }
             secondMethodAmount = secondMethodAmount.minus(secondPortionAmount);
           }
         } else {
@@ -129,6 +210,16 @@ export async function clearCustomerBalance(raw: unknown): Promise<ActionResult<u
               receivedById: ctx.userId,
             },
           });
+
+          if (nextAmountPaid.greaterThanOrEqualTo(new Decimal(sale.total.toString()))) {
+            await reconcileSettledCreditSale(
+              tx,
+              sale.id,
+              selectedMethod,
+              allocation.amount,
+              reference || "Balance cleared",
+            );
+          }
         }
       }
 
@@ -174,6 +265,16 @@ export async function recordCustomerPayment(raw: unknown): Promise<ActionResult<
         const nextAmountPaid = new Decimal(sale.amountPaid.toString()).plus(new Decimal(allocation.amount));
         await tx.sale.update({ where: { id: sale.id }, data: { amountPaid: nextAmountPaid.toFixed(2) } });
         await tx.customerPayment.create({ data: { organizationId: ctx.organizationId, customerId: customer.id, saleId: sale.id, amount: allocation.amount, method: input.method, reference: input.reference || null, receivedById: ctx.userId } });
+
+        if (nextAmountPaid.greaterThanOrEqualTo(new Decimal(sale.total.toString()))) {
+          await reconcileSettledCreditSale(
+            tx,
+            sale.id,
+            input.method,
+            allocation.amount,
+            input.reference || null,
+          );
+        }
       }
     });
 

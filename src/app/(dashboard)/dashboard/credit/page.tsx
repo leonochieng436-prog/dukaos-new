@@ -11,6 +11,25 @@ const money = new Intl.NumberFormat("en-KE", {
   maximumFractionDigits: 2,
 });
 
+function formatMethod(method: string) {
+  switch (method) {
+    case "MPESA":
+      return "M-Pesa";
+    case "BANK_TRANSFER":
+      return "Bank transfer";
+    case "CREDIT":
+      return "Credit";
+    default:
+      return method.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+}
+
+function getFinalSettlementMethod(sale: { payments?: { method: string }[] }) {
+  const methods = (sale.payments ?? []).map((payment) => payment.method).filter(Boolean);
+  const settledMethods = methods.filter((method) => method !== "CREDIT");
+  return settledMethods.length > 0 ? settledMethods[0] : methods[0] ?? "CREDIT";
+}
+
 export default async function CreditPage() {
   const ctx = await requireAuthContext();
   assertPermission(ctx, "CUSTOMER_CREDIT_MANAGE");
@@ -21,7 +40,7 @@ export default async function CreditPage() {
       include: {
         sales: {
           where: { isCreditSale: true, status: "COMPLETED" },
-          select: { id: true, receiptNumber: true, total: true, amountPaid: true, createdAt: true },
+          select: { id: true, receiptNumber: true, total: true, amountPaid: true, createdAt: true, payments: { select: { method: true } } },
           orderBy: { createdAt: "desc" },
         },
         payments: { select: { amount: true } },
@@ -30,7 +49,7 @@ export default async function CreditPage() {
     }),
     ctx.db.sale.findMany({
       where: { isCreditSale: true, status: "COMPLETED" },
-      include: { customer: true, branch: true },
+      include: { customer: true, branch: true, payments: true },
       orderBy: { createdAt: "desc" },
     }),
   ]);
@@ -119,6 +138,11 @@ export default async function CreditPage() {
                         <Badge variant="warning">{sales.length} sale{sales.length === 1 ? "" : "s"}</Badge>
                       </div>
                       <p className="mt-1 text-[12px] text-muted-foreground">Limit: {money.format(Number(customer.creditLimit))} · Phone: {customer.phone ?? "—"}</p>
+                      {sales.filter((sale) => new Decimal(sale.total.toString()).minus(new Decimal(sale.amountPaid.toString())).lte(0)).length > 0 && (
+                        <p className="mt-2 text-[12px] text-muted-foreground">
+                          Final settlement: <span className="font-medium text-foreground">{formatMethod(getFinalSettlementMethod(sales.find((sale) => new Decimal(sale.total.toString()).minus(new Decimal(sale.amountPaid.toString())).lte(0)) ?? sales[0]))}</span>
+                        </p>
+                      )}
                     </div>
                     <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
                       <div className="text-right">
@@ -159,6 +183,11 @@ export default async function CreditPage() {
                         <span>Paid: <span className="font-medium text-foreground">{money.format(Number(sale.amountPaid))}</span></span>
                         <span>Due: <span className="font-medium text-foreground">{money.format(outstanding.toNumber())}</span></span>
                       </div>
+                      {outstanding.lte(0) && (
+                        <p className="mt-2 text-[12px] text-muted-foreground">
+                          Final settlement: <span className="font-medium text-foreground">{formatMethod(getFinalSettlementMethod(sale))}</span>
+                        </p>
+                      )}
                     </div>
                   );
                 })}
