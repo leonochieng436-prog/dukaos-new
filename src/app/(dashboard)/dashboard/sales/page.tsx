@@ -3,7 +3,8 @@ import { assertPermission, requireAuthContext } from "@/server/auth/context";
 import { correctSale } from "@/app/actions/sales";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Download, Filter, Search, ShieldCheck, Wallet } from "lucide-react";
+import { Download, Filter, ShieldCheck, Wallet } from "lucide-react";
+import { SalesFilters } from "./sales-filters";
 
 const money = new Intl.NumberFormat("en-KE", {
   style: "currency",
@@ -24,11 +25,23 @@ function formatMethod(method: string) {
   }
 }
 
-function statusVariant(status: string) {
-  if (status === "COMPLETED") return "success" as const;
-  if (status === "PARTIALLY_RETURNED" || status === "CORRECTION_PENDING") return "warning" as const;
-  if (status === "VOIDED") return "danger" as const;
-  return "secondary" as const;
+function getDisplayStatus(sale: any): string {
+  // For credit sales, show settlement status instead of completion status
+  if (sale.isCreditSale) {
+    const isFullySettled = sale.total.equals(sale.amountPaid);
+    if (!isFullySettled) {
+      return "PARTIALLY_SETTLED";
+    }
+    return "COMPLETED";
+  }
+  return sale.status;
+}
+
+function statusVariant(displayStatus: string, actualStatus: string) {
+  if (displayStatus === "COMPLETED") return "success" as const;
+  if (displayStatus === "PARTIALLY_SETTLED" || actualStatus === "PARTIALLY_RETURNED" || actualStatus === "CORRECTION_PENDING") return "warning" as const;
+  if (actualStatus === "VOIDED") return "danger" as const;
+  return "neutral" as const;
 }
 
 export default async function SalesPage({
@@ -39,12 +52,34 @@ export default async function SalesPage({
   const ctx = await requireAuthContext();
   assertPermission(ctx, "SALES_VIEW");
   const params = searchParams ? await searchParams : {};
+  
   const query = typeof params.q === "string" ? params.q.trim() : "";
-  const today = new Date();
-  const startOfDay = new Date(today);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(today);
-  endOfDay.setHours(23, 59, 59, 999);
+  const minAmount = typeof params.minAmount === "string" ? parseFloat(params.minAmount) : undefined;
+  const maxAmount = typeof params.maxAmount === "string" ? parseFloat(params.maxAmount) : undefined;
+  const status = typeof params.status === "string" ? params.status : "";
+  const paymentMethod = typeof params.method === "string" ? params.method : "";
+  const cashierId = typeof params.cashierId === "string" ? params.cashierId : "";
+  const branchId = typeof params.branchId === "string" ? params.branchId : "";
+  const dateRange = typeof params.dateRange === "string" ? params.dateRange : "today";
+
+  let startOfDay = new Date();
+  let endOfDay = new Date();
+
+  if (dateRange === "today") {
+    startOfDay.setHours(0, 0, 0, 0);
+    endOfDay.setHours(23, 59, 59, 999);
+  } else if (dateRange === "week") {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const diff = now.getDate() - dayOfWeek;
+    startOfDay = new Date(now.setDate(diff));
+    startOfDay.setHours(0, 0, 0, 0);
+    endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+  } else if (dateRange === "month") {
+    startOfDay = new Date(startOfDay.getFullYear(), startOfDay.getMonth(), 1);
+    endOfDay = new Date(endOfDay.getFullYear(), endOfDay.getMonth() + 1, 0, 23, 59, 59, 999);
+  }
 
   const sales = await ctx.db.sale.findMany({
     where: {
@@ -52,6 +87,22 @@ export default async function SalesPage({
       status: "COMPLETED",
       createdAt: { gte: startOfDay, lte: endOfDay },
       ...(ctx.branchIds && ctx.branchIds.length > 0 ? { branchId: { in: ctx.branchIds } } : {}),
+      ...(branchId && (!ctx.branchIds || ctx.branchIds.includes(branchId)) ? { branchId } : {}),
+      ...(cashierId ? { cashierId } : {}),
+      ...(status && ["COMPLETED", "PARTIALLY_RETURNED", "VOIDED", "CORRECTION_PENDING"].includes(status) ? { status: status as any } : {}),
+      ...(minAmount !== undefined || maxAmount !== undefined
+        ? {
+            total: {
+              ...(minAmount !== undefined ? { gte: minAmount.toString() } : {}),
+              ...(maxAmount !== undefined ? { lte: maxAmount.toString() } : {}),
+            },
+          }
+        : {}),
+      ...(paymentMethod && ["CASH", "MPESA", "CARD", "BANK_TRANSFER", "CREDIT"].includes(paymentMethod)
+        ? {
+            payments: { some: { method: paymentMethod as any } },
+          }
+        : {}),
       ...(query
         ? {
             OR: [
@@ -66,6 +117,22 @@ export default async function SalesPage({
     },
     include: { branch: true, register: true, cashier: true, customer: true, payments: true, items: { select: { quantity: true, productNameSnapshot: true, total: true } } },
     orderBy: { createdAt: "desc" },
+  });
+
+  const allCashiers = await ctx.db.sale.findMany({
+    where: { organizationId: ctx.organizationId, status: "COMPLETED" },
+    select: { cashier: { select: { id: true, name: true } } },
+    distinct: ["cashierId"],
+    orderBy: { cashier: { name: "asc" } },
+  }).then((records) => records.map((r) => r.cashier));
+
+  const allBranches = await ctx.db.branch.findMany({
+    where: {
+      organizationId: ctx.organizationId,
+      ...(ctx.branchIds && ctx.branchIds.length > 0 ? { id: { in: ctx.branchIds } } : {}),
+    },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
   });
 
   const totalSales = sales.reduce((sum, sale) => sum + Number(sale.total), 0);
@@ -106,35 +173,19 @@ export default async function SalesPage({
         </div>
       </div>
 
-      <div className="rounded-[var(--radius-lg)] border border-border bg-surface p-4 shadow-[0_8px_24px_rgba(18,23,26,0.04)]">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="relative w-full max-w-xl">
-            <Search size={15} className="pointer-events-none absolute left-3 top-3 text-muted-foreground" />
-            <form method="get">
-              <input
-                name="q"
-                defaultValue={query}
-                placeholder="Search receipt, barcode, product, customer, cashier, payment ref..."
-                className="h-11 w-full rounded-[var(--radius-sm)] border border-border-strong bg-surface pl-10 pr-3 text-sm"
-              />
-            </form>
-          </div>
-
-          <div className="flex flex-wrap gap-2 text-sm">
-            {[
-              "Today",
-              "Branch",
-              "Cashier",
-              "Payment",
-              "Status",
-            ].map((filter) => (
-              <button key={filter} type="button" className="rounded-[var(--radius-sm)] border border-border bg-surface-muted px-3 py-2 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground">
-                {filter}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      <SalesFilters
+        query={query}
+        minAmount={minAmount}
+        maxAmount={maxAmount}
+        status={status}
+        paymentMethod={paymentMethod}
+        cashierId={cashierId}
+        dateRange={dateRange}
+        cashiers={allCashiers}
+        branches={allBranches}
+        salesCount={sales.length}
+        hasFilters={!!(query || minAmount !== undefined || maxAmount !== undefined || status || paymentMethod || cashierId || branchId)}
+      />
 
       <div className="overflow-hidden rounded-[var(--radius-lg)] border border-border bg-surface shadow-[0_8px_24px_rgba(18,23,26,0.04)]">
         <div className="hidden grid-cols-[1.1fr_1fr_0.9fr_0.8fr_0.8fr_0.8fr_0.9fr_0.8fr] gap-3 border-b border-border bg-surface-muted px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground lg:grid">
@@ -190,7 +241,14 @@ export default async function SalesPage({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant={statusVariant(sale.status)}>{sale.status}</Badge>
+                  {(() => {
+                    const displayStatus = getDisplayStatus(sale);
+                    return (
+                      <Badge variant={statusVariant(displayStatus, sale.status)}>
+                        {displayStatus.replace(/_/g, " ")}
+                      </Badge>
+                    );
+                  })()}
                   <Link href={`/dashboard/sales/${sale.id}`} className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] border border-border px-2 py-1 text-[11px] font-medium text-primary hover:bg-surface-muted">
                     View
                   </Link>
