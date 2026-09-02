@@ -10,8 +10,79 @@ import {
 } from "@/server/auth/context";
 import { recordAudit } from "@/server/services/audit";
 import { adjustStockQuantity, InsufficientStockError } from "@/server/services/inventory";
-import { adjustStockSchema } from "@/lib/validation/inventory";
+import { addStockSchema, adjustStockSchema } from "@/lib/validation/inventory";
 import type { ActionResult } from "./auth";
+
+export async function addStock(raw: unknown): Promise<ActionResult<undefined>> {
+  try {
+    const ctx = await requireAuthContext();
+    assertPermission(ctx, "INVENTORY_ADJUST");
+
+    const parsed = addStockSchema.safeParse(raw);
+    if (!parsed.success) {
+      return {
+        ok: false,
+        error: parsed.error.issues[0]?.message ?? "Please fix the stock entry.",
+        fieldErrors: parsed.error.flatten().fieldErrors,
+      };
+    }
+
+    const input = parsed.data;
+
+    const warehouse = await ctx.db.warehouse.findFirst({
+      where: { id: input.warehouseId, isActive: true },
+    });
+    if (!warehouse) {
+      return { ok: false, error: "Warehouse not found." };
+    }
+    assertBranchAccess(ctx, warehouse.branchId);
+
+    const variant = await ctx.db.productVariant.findFirst({
+      where: {
+        id: input.variantId,
+        isActive: true,
+        product: { isActive: true, organizationId: ctx.organizationId },
+      },
+    });
+    if (!variant) {
+      return { ok: false, error: "Product not found." };
+    }
+
+    await ctx.db.$transaction(async (tx) => {
+      await adjustStockQuantity(tx as unknown as Prisma.TransactionClient, {
+        organizationId: ctx.organizationId,
+        warehouseId: input.warehouseId,
+        variantId: input.variantId,
+        delta: Number(input.quantity),
+        unitCostForIncrease: input.unitCost || variant.costPrice.toString(),
+        type: "ADJUSTMENT",
+        reason: input.reason || "Manual stock addition",
+        createdById: ctx.userId,
+      });
+    });
+
+    await recordAudit({
+      organizationId: ctx.organizationId,
+      userId: ctx.userId,
+      action: "INVENTORY_STOCK_ADDED",
+      entityType: "ProductVariant",
+      entityId: input.variantId,
+      metadata: {
+        warehouseId: input.warehouseId,
+        quantity: input.quantity,
+        unitCost: input.unitCost,
+        reason: input.reason || "Manual stock addition",
+      },
+    });
+
+    revalidatePath("/dashboard/inventory");
+    revalidatePath("/dashboard/products");
+    return { ok: true, data: undefined };
+  } catch (e) {
+    if (e instanceof AuthError) return { ok: false, error: e.message };
+    throw e;
+  }
+}
 
 export async function adjustStock(raw: unknown): Promise<ActionResult<undefined>> {
   try {

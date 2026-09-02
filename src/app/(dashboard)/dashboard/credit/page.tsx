@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import Decimal from "decimal.js";
 import { AlertTriangle, CircleDollarSign, CreditCard, Users } from "lucide-react";
 import { ClearCustomerBalanceForm } from "@/app/(dashboard)/dashboard/customers/customer-form";
+import { getFinalSettlementMethod } from "@/lib/credit";
 
 const money = new Intl.NumberFormat("en-KE", {
   style: "currency",
@@ -22,12 +23,6 @@ function formatMethod(method: string) {
     default:
       return method.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
-}
-
-function getFinalSettlementMethod(sale: { payments?: { method: string }[] }) {
-  const methods = (sale.payments ?? []).map((payment) => payment.method).filter(Boolean);
-  const settledMethods = methods.filter((method) => method !== "CREDIT");
-  return settledMethods.length > 0 ? settledMethods[0] : methods[0] ?? "CREDIT";
 }
 
 export default async function CreditPage() {
@@ -140,7 +135,7 @@ export default async function CreditPage() {
                       <p className="mt-1 text-[12px] text-muted-foreground">Limit: {money.format(Number(customer.creditLimit))} · Phone: {customer.phone ?? "—"}</p>
                       {sales.filter((sale) => new Decimal(sale.total.toString()).minus(new Decimal(sale.amountPaid.toString())).lte(0)).length > 0 && (
                         <p className="mt-2 text-[12px] text-muted-foreground">
-                          Final settlement: <span className="font-medium text-foreground">{formatMethod(getFinalSettlementMethod(sales.find((sale) => new Decimal(sale.total.toString()).minus(new Decimal(sale.amountPaid.toString())).lte(0)) ?? sales[0]))}</span>
+                          Final settlement: <span className="font-medium text-foreground">{formatMethod(getFinalSettlementMethod({ isCreditSale: true, payments: (sales.find((sale) => new Decimal(sale.total.toString()).minus(new Decimal(sale.amountPaid.toString())).lte(0)) ?? sales[0])?.payments ?? [] }))}</span>
                         </p>
                       )}
                     </div>
@@ -185,7 +180,7 @@ export default async function CreditPage() {
                       </div>
                       {outstanding.lte(0) && (
                         <p className="mt-2 text-[12px] text-muted-foreground">
-                          Final settlement: <span className="font-medium text-foreground">{formatMethod(getFinalSettlementMethod(sale))}</span>
+                          Final settlement: <span className="font-medium text-foreground">{formatMethod(getFinalSettlementMethod({ isCreditSale: sale.isCreditSale, payments: sale.payments }))}</span>
                         </p>
                       )}
                     </div>

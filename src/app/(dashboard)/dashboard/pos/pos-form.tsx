@@ -25,7 +25,7 @@ export function PosForm({ branches, warehouses, registers, variants, customers, 
   const [warehouseId, setWarehouseId] = useState(warehouses.find((item) => item.branchId === activeBranchId)?.id ?? "");
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All products");
-  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "MPESA" | "CARD" | "BANK_TRANSFER" | "CREDIT">("CASH");
+  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "MPESA" | "CARD" | "BANK_TRANSFER" | "CREDIT" | "OTHER">("CASH");
   const [amountPaid, setAmountPaid] = useState("");
   const [splitPayment, setSplitPayment] = useState(false);
   const [secondPaymentMethod, setSecondPaymentMethod] = useState<typeof paymentMethod>("MPESA");
@@ -105,7 +105,8 @@ export function PosForm({ branches, warehouses, registers, variants, customers, 
     event.preventDefault();
     setError("");
     setSuccess("");
-    const creditSale = paymentMethod === "CREDIT" || (splitPayment && (paymentMethod === "CREDIT" || secondPaymentMethod === "CREDIT"));
+    const isCreditMethod = (method: string) => method === "CREDIT";
+    const creditSale = isCreditMethod(paymentMethod) || (splitPayment && (isCreditMethod(paymentMethod) || isCreditMethod(secondPaymentMethod)));
     if (creditSale && !customerId) {
       setError("Select or add a customer before completing a credit sale.");
       return;

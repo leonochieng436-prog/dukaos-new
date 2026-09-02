@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AddVariantForm } from "./add-variant-form";
 import { EditProductForm } from "./edit-product-form";
+import { AddStockButton } from "@/components/inventory/add-stock-button";
 import Decimal from "decimal.js";
 
 export default async function ProductDetailPage({
@@ -14,7 +15,7 @@ export default async function ProductDetailPage({
   const { productId } = await params;
   const ctx = await requireAuthContext();
 
-  const [product, taxRates, categories, brands, suppliers] = await Promise.all([
+  const [product, taxRates, categories, brands, suppliers, warehouses] = await Promise.all([
     ctx.db.product.findFirst({
       where: { id: productId, organizationId: ctx.organizationId },
       include: {
@@ -35,6 +36,7 @@ export default async function ProductDetailPage({
     ctx.db.category.findMany({ orderBy: { name: "asc" } }),
     ctx.db.brand.findMany({ orderBy: { name: "asc" } }),
     ctx.db.supplier.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
+    ctx.db.warehouse.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
   ]);
 
   if (!product) notFound();
@@ -110,12 +112,22 @@ export default async function ProductDetailPage({
                       {new Decimal(v.sellingPrice.toString()).toFixed(2)}
                     </td>
                     <td className="px-5 py-3 text-right font-tabular">
-                      {stock.toString()}
-                      {low && (
-                        <Badge variant="warning" className="ml-2">
-                          Low
-                        </Badge>
-                      )}
+                      <div className="flex items-center justify-end gap-2">
+                        <span>{stock.toString()}</span>
+                        {low && (
+                          <Badge variant="warning" className="ml-1">
+                            Low
+                          </Badge>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      <AddStockButton
+                        productName={product.name}
+                        variantId={v.id}
+                        variantLabel={`${v.name} · ${v.sku}`}
+                        warehouses={warehouses.map((warehouse) => ({ id: warehouse.id, name: warehouse.name }))}
+                      />
                     </td>
                   </tr>
                 );

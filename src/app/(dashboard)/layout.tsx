@@ -28,6 +28,9 @@ const NAV: DashboardNavItem[] = [
   { href: "/dashboard/expenses", label: "Expenses", icon: "expenses" },
   { href: "/dashboard/reports", label: "Reports", icon: "reports" },
   { href: "/dashboard/billing", label: "Billing", icon: "billing" },
+];
+
+const ADMIN_NAV: DashboardNavItem[] = [
   { href: "/dashboard/settings/branches", label: "Settings", icon: "settings" },
 ];
 
@@ -58,10 +61,12 @@ export default async function DashboardLayout({
     "ROLES_MANAGE",
     "AUDIT_LOG_VIEW",
   ].some((permission) => ctx.permissions.has(permission));
-  const adminNav = NAV.slice(9).filter((item) =>
+  const adminNav = [...ADMIN_NAV, ...NAV.slice(9)].filter((item) =>
     item.href === "/dashboard/billing"
       ? ctx.permissions.has("BILLING_MANAGE")
-      : canOpenSettings
+      : item.href === "/dashboard/settings/branches"
+        ? canOpenSettings
+        : canOpenSettings
   );
 
   return (

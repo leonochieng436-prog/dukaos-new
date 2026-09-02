@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createProduct, createCategory, createBrand } from "@/app/actions/products";
+import { createProduct, createCategory, createBrand, importProductsFromSpreadsheet } from "@/app/actions/products";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +34,36 @@ export function NewProductForm({
   const [newCategory, setNewCategory] = useState("");
   const [newBrand, setNewBrand] = useState("");
   const [trackExpiry, setTrackExpiry] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const [bulkSuccess, setBulkSuccess] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [importMode, setImportMode] = useState<"create" | "update" | "upsert">("upsert");
+
+  function handleBulkImport() {
+    if (!selectedFile) {
+      setBulkError("Choose a CSV or Excel file to import.");
+      return;
+    }
+
+    setBulkError(null);
+    setBulkSuccess(null);
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+    formData.append("mode", importMode);
+
+    startTransition(async () => {
+      const result = await importProductsFromSpreadsheet(formData);
+      if (!result.ok) {
+        setBulkError(result.error);
+        return;
+      }
+
+      setBulkSuccess(`${result.data.count} product${result.data.count === 1 ? "" : "s"} imported successfully.`);
+      setSelectedFile(null);
+      router.refresh();
+    });
+  }
 
   function handleAddCategory() {
     if (!newCategory.trim()) return;
@@ -101,6 +131,51 @@ export function NewProductForm({
           {error}
         </div>
       )}
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <CardTitle>Bulk import</CardTitle>
+            <a href="/templates/product-import-template.csv" download className="text-xs font-medium text-primary hover:underline">
+              Download template
+            </a>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-[var(--radius-sm)] border border-dashed border-border-strong bg-surface-muted p-3">
+            <label className="block text-sm font-medium text-foreground">Import CSV or Excel</label>
+            <input
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+              className="mt-2 block w-full text-sm text-muted-foreground file:mr-3 file:rounded file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground"
+            />
+            <p className="mt-2 text-[12px] text-muted-foreground">Columns: name, sku, selling_price, cost_price, barcode, category, brand, supplier, unit, description, min_stock, reorder_level, opening_warehouse, opening_quantity.</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
+              <label className="block text-sm">
+                <span className="mb-1 block text-muted-foreground">Import mode</span>
+                <select
+                  value={importMode}
+                  onChange={(event) => setImportMode(event.target.value as "create" | "update" | "upsert")}
+                  className="h-9 w-full rounded border border-border-strong bg-surface px-2 text-sm"
+                >
+                  <option value="create">Create new products only</option>
+                  <option value="update">Update existing products only</option>
+                  <option value="upsert">Add new and update existing</option>
+                </select>
+              </label>
+              <div className="flex items-end">
+                <Button type="button" variant="secondary" size="sm" onClick={handleBulkImport} disabled={isPending || !selectedFile}>
+                  Import products
+                </Button>
+              </div>
+            </div>
+            <p className="mt-2 text-[12px] text-muted-foreground">Rows are matched by SKU first, then barcode. Updates change existing items; creates add new ones.</p>
+            {bulkError && <p className="mt-2 text-[12px] text-danger">{bulkError}</p>}
+            {bulkSuccess && <p className="mt-2 text-[12px] text-success">{bulkSuccess}</p>}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

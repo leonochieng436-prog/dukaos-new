@@ -7,6 +7,7 @@ import Decimal from "decimal.js";
 import { ProductActions } from "./product-actions";
 import { Archive, Boxes, Package, Plus, Search, Tag } from "lucide-react";
 import { ExportLink } from "../reports/export-link";
+import { AddStockButton } from "@/components/inventory/add-stock-button";
 
 const money = new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 });
 
@@ -29,7 +30,7 @@ export default async function ProductsPage({
   const brandId = typeof params.brandId === "string" ? params.brandId : "";
   const stockFilter = typeof params.stock === "string" ? params.stock : "";
 
-  const [products, categories, brands] = await Promise.all([
+  const [products, categories, brands, warehouses] = await Promise.all([
     ctx.db.product.findMany({
       where: { isActive: true, ...(categoryId ? { categoryId } : {}), ...(brandId ? { brandId } : {}), ...(query ? { OR: [{ name: { contains: query, mode: "insensitive" } }, { variants: { some: { sku: { contains: query, mode: "insensitive" } } } }, { variants: { some: { barcodes: { some: { barcode: { contains: query, mode: "insensitive" } } } } } }] } : {}) },
       include: { category: true, brand: true, primarySupplier: true, variants: { include: { barcodes: true, taxRate: true, inventoryItems: { select: { quantity: true } } } } },
@@ -37,6 +38,7 @@ export default async function ProductsPage({
     }),
     ctx.db.category.findMany({ orderBy: { name: "asc" } }),
     ctx.db.brand.findMany({ orderBy: { name: "asc" } }),
+    ctx.db.warehouse.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
   ]);
 
   const rows = products.map((product) => {
@@ -100,10 +102,13 @@ export default async function ProductsPage({
                       <td className="px-3 py-3 text-muted-foreground">{primaryVariant?.sku ?? "—"}<br /><span className="text-[11px]">{primaryVariant?.barcodes[0]?.barcode ?? "No barcode"}</span></td><td className="px-3 py-3 text-muted-foreground">{p.category?.name ?? "Uncategorized"}</td><td className="px-3 py-3 text-[12px] text-muted-foreground">{p.primarySupplier?.name ?? "—"}</td><td className="px-3 py-3 text-right font-tabular font-semibold">{totalStock.toFixed(3)}</td><td className="px-3 py-3 text-right font-tabular text-muted-foreground">{primaryVariant ? money.format(Number(primaryVariant.costPrice)) : "—"}</td><td className="px-3 py-3 text-right font-tabular">{primaryVariant ? money.format(Number(primaryVariant.sellingPrice)) : "—"}</td><td className="px-5 py-3 text-right"><Badge variant={status.variant}>{status.label}</Badge></td>
                       <td className="px-5 py-3 text-right">
                         <div className="flex justify-end gap-2">
-                          <Link href={`/dashboard/products/${p.id}`}>
-                            <Button type="button" variant="secondary" size="sm">Edit</Button>
-                          </Link>
-                          <ProductActions productId={p.id} />
+                          <ProductActions
+                            productId={p.id}
+                            productName={p.name}
+                            variantId={primaryVariant?.id ?? p.variants[0]?.id ?? undefined}
+                            variantLabel={`${primaryVariant?.name ?? p.name} · ${primaryVariant?.sku ?? ""}`}
+                            warehouses={warehouses.map((warehouse) => ({ id: warehouse.id, name: warehouse.name }))}
+                          />
                         </div>
                       </td>
                     </tr>
@@ -114,6 +119,7 @@ export default async function ProductsPage({
           )}
         </CardContent>
       </Card>
+
     </div>
   );
 }

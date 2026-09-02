@@ -4,6 +4,38 @@ export function calculateSaleOutstanding(total: string, amountPaid: string) {
   return new Decimal(total).minus(new Decimal(amountPaid)).toFixed(2);
 }
 
+export function getEffectivePaymentMethods({
+  isCreditSale,
+  payments,
+}: {
+  isCreditSale: boolean;
+  payments: Array<{ method: string }>;
+}) {
+  const methods = payments.map((payment) => payment.method).filter(Boolean);
+
+  if (isCreditSale) {
+    const settledMethods = methods.filter((method) => method !== "CREDIT");
+    if (settledMethods.length > 0) return settledMethods;
+  }
+
+  return methods;
+}
+
+export function getFinalSettlementMethod({
+  isCreditSale,
+  payments,
+}: {
+  isCreditSale?: boolean;
+  payments?: Array<{ method: string }>;
+}) {
+  const methods = getEffectivePaymentMethods({
+    isCreditSale: Boolean(isCreditSale),
+    payments: payments ?? [],
+  });
+
+  return methods[0] ?? "CREDIT";
+}
+
 export function allocatePaymentToSales({
   sales,
   paymentAmount,

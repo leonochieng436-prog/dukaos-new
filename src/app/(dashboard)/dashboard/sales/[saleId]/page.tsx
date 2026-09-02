@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, CreditCard, ReceiptText, RotateCcw, ShieldAlert, Tag } from "lucide-react";
 import { requireAuthContext } from "@/server/auth/context";
 import { correctSale, voidSale } from "@/app/actions/sales";
+import { getEffectivePaymentMethods } from "@/lib/credit";
 import { buildSaleVersionTimeline } from "@/lib/sales";
 import { RefundSaleModalForm } from "@/components/settlement-modals";
 
@@ -26,14 +27,10 @@ function formatMethod(method: string) {
 }
 
 function getSettlementMethods(sale: { isCreditSale: boolean; payments: { method: string }[] }) {
-  const methods = sale.payments.map((payment) => payment.method);
-
-  if (sale.isCreditSale) {
-    const settledMethods = methods.filter((method) => method !== "CREDIT");
-    if (settledMethods.length > 0) return settledMethods;
-  }
-
-  return methods;
+  return getEffectivePaymentMethods({
+    isCreditSale: sale.isCreditSale,
+    payments: sale.payments,
+  });
 }
 
 export default async function SalesDetailPage({ params }: { params: Promise<{ saleId: string }> }) {
@@ -156,7 +153,10 @@ export default async function SalesDetailPage({ params }: { params: Promise<{ sa
 
           <div className="rounded-[var(--radius-lg)] border border-border bg-surface p-5 shadow-[0_8px_24px_rgba(18,23,26,0.04)]">
             <h2 className="text-lg font-semibold">Edit transaction</h2>
-            <form action={correctSale} className="mt-4 space-y-3 rounded-[var(--radius-md)] border border-border bg-surface-muted p-3">
+            <form action={async (formData: FormData) => {
+              "use server";
+              await correctSale(formData);
+            }} className="mt-4 space-y-3 rounded-[var(--radius-md)] border border-border bg-surface-muted p-3">
               <input type="hidden" name="saleId" value={sale.id} />
               <div className="grid gap-3 md:grid-cols-2">
                 <div>
@@ -215,7 +215,10 @@ export default async function SalesDetailPage({ params }: { params: Promise<{ sa
             <div className="mt-4 space-y-3">
               <RefundSaleModalForm saleId={sale.id} />
 
-              <form action={voidSale} className="space-y-3 rounded-[var(--radius-md)] border border-border bg-surface-muted p-3">
+              <form action={async (formData: FormData) => {
+                "use server";
+                await voidSale(formData);
+              }} className="space-y-3 rounded-[var(--radius-md)] border border-border bg-surface-muted p-3">
                 <input type="hidden" name="saleId" value={sale.id} />
                 <div>
                   <label className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Void reason</label>

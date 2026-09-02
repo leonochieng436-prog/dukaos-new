@@ -22,7 +22,7 @@ import {
 } from "@/lib/validation/auth";
 
 export type ActionResult<T = undefined> =
-  | { ok: true; data: T }
+  | { ok: true; data: T; warnings?: string[] }
   | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
 
 async function clientIp(): Promise<string | null> {

@@ -4,6 +4,7 @@ import { correctSale } from "@/app/actions/sales";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Download, Filter, ShieldCheck, Wallet } from "lucide-react";
+import { getEffectivePaymentMethods } from "@/lib/credit";
 import { SalesFilters } from "./sales-filters";
 
 const money = new Intl.NumberFormat("en-KE", {
@@ -26,14 +27,10 @@ function formatMethod(method: string) {
 }
 
 function getVisiblePaymentMethods(sale: any) {
-  const methods = (sale.payments ?? []).map((payment: any) => payment.method).filter(Boolean);
-
-  if (sale.isCreditSale) {
-    const settledMethods = methods.filter((method: string) => method !== "CREDIT");
-    if (settledMethods.length > 0) return settledMethods;
-  }
-
-  return methods;
+  return getEffectivePaymentMethods({
+    isCreditSale: Boolean(sale.isCreditSale),
+    payments: sale.payments ?? [],
+  });
 }
 
 function getDisplayStatus(sale: any): string {

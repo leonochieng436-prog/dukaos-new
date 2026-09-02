@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 
 // Standard Next.js singleton pattern to avoid exhausting DB connections
 // during dev-mode hot reload.
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+const globalForPrisma = globalThis as unknown as { basePrisma?: PrismaClient; prisma?: PrismaClient };
 
 function databaseUrlWithConnectionTimeout() {
   const configuredUrl = process.env.DATABASE_URL;
@@ -12,8 +12,8 @@ function databaseUrlWithConnectionTimeout() {
   if (!url.searchParams.has("connect_timeout")) {
     url.searchParams.set("connect_timeout", "15");
   }
-  url.searchParams.set("connection_limit", process.env.PRISMA_CONNECTION_LIMIT ?? "5");
-  url.searchParams.set("pool_timeout", process.env.PRISMA_POOL_TIMEOUT ?? "30");
+  url.searchParams.set("connection_limit", process.env.PRISMA_CONNECTION_LIMIT ?? "20");
+  url.searchParams.set("pool_timeout", process.env.PRISMA_POOL_TIMEOUT ?? "120");
   return url.toString();
 }
 
@@ -31,35 +31,36 @@ function pause(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-function createPrismaClient() {
-  const client = new PrismaClient({
+function createBasePrismaClient() {
+  return new PrismaClient({
     datasourceUrl: databaseUrlWithConnectionTimeout(),
     log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
   });
-
-  return client.$extends({
-    name: "transient-connection-retry",
-    query: {
-      $allModels: {
-        async $allOperations({ args, query }) {
-          for (let attempt = 0; ; attempt += 1) {
-            try {
-              return await query(args);
-            } catch (error) {
-              if (!isTransientConnectionError(error) || attempt >= 2) throw error;
-              await pause(250 * (attempt + 1));
-            }
-          }
-        },
-      }
-    },
-  }) as unknown as PrismaClient;
 }
 
-export const rawPrisma =
-  globalForPrisma.prisma ??
-  createPrismaClient();
+export const basePrisma =
+  globalForPrisma.basePrisma ??
+  createBasePrismaClient();
+
+export const rawPrisma = basePrisma.$extends({
+  name: "transient-connection-retry",
+  query: {
+    $allModels: {
+      async $allOperations({ args, query }) {
+        for (let attempt = 0; ; attempt += 1) {
+          try {
+            return await query(args);
+          } catch (error) {
+            if (!isTransientConnectionError(error) || attempt >= 2) throw error;
+            await pause(250 * (attempt + 1));
+          }
+        }
+      },
+    },
+  },
+}) as unknown as PrismaClient;
 
 if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.basePrisma = basePrisma;
   globalForPrisma.prisma = rawPrisma;
 }

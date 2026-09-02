@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { adjustStock } from "@/app/actions/inventory";
+import { addStock, adjustStock } from "@/app/actions/inventory";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,7 +55,16 @@ export function AdjustStockForm({
     };
 
     startTransition(async () => {
-      const result = await adjustStock(payload);
+      const result = direction === "INCREASE"
+        ? await addStock({
+            warehouseId: payload.warehouseId,
+            variantId: payload.variantId,
+            quantity: payload.quantity,
+            unitCost: payload.unitCost || "0",
+            reason: payload.reason,
+          })
+        : await adjustStock(payload);
+
       if (!result.ok) {
         setError(result.error);
         return;
@@ -104,6 +113,7 @@ export function AdjustStockForm({
               <select
                 id="variantId"
                 name="variantId"
+                key={initialVariantId ?? "new"}
                 required
                 defaultValue={initialVariantId ?? ""}
                 className="h-9 w-full rounded-[var(--radius-sm)] border border-border-strong bg-surface px-3 text-sm"

@@ -11,7 +11,7 @@ import { allocatePaymentToSales } from "@/lib/credit";
 import type { ActionResult } from "./auth";
 
 async function reconcileSettledCreditSale(
-  tx: Prisma.TransactionClient,
+  tx: any,
   saleId: string,
   actualMethod: string,
   actualAmount: string,
@@ -29,8 +29,11 @@ async function reconcileSettledCreditSale(
 
   if (paid.lessThan(total)) return;
 
-  const existingCreditPayment = sale.payments.find((payment) => payment.method === "CREDIT");
+  const existingCreditPayment = sale.payments.find((payment: { method: string }) => payment.method === "CREDIT");
   const paymentMethod = actualMethod.toUpperCase();
+  const previousMetadata = existingCreditPayment?.metadata && typeof existingCreditPayment.metadata === "object" && !Array.isArray(existingCreditPayment.metadata)
+    ? existingCreditPayment.metadata as Record<string, unknown>
+    : {};
 
   if (existingCreditPayment) {
     await tx.payment.update({
@@ -41,12 +44,16 @@ async function reconcileSettledCreditSale(
         status: "CONFIRMED",
         providerRef: reference || existingCreditPayment.providerRef,
         metadata: {
-          ...(existingCreditPayment.metadata ?? {}),
+          ...previousMetadata,
           settledAs: paymentMethod,
           settledReference: reference || null,
           settlementAmount: actualAmount,
         },
       },
+    });
+    await tx.sale.update({
+      where: { id: saleId },
+      data: { isCreditSale: false },
     });
     return;
   }
@@ -65,6 +72,11 @@ async function reconcileSettledCreditSale(
         settlementAmount: actualAmount,
       },
     },
+  });
+
+  await tx.sale.update({
+    where: { id: saleId },
+    data: { isCreditSale: false },
   });
 }
 
@@ -124,7 +136,14 @@ export async function clearCustomerBalance(raw: unknown): Promise<ActionResult<u
       secondMethodAmount = splitAmountDecimal;
     }
 
-    const allocations = allocatePaymentToSales({ sales: creditSales, paymentAmount: paymentAmount.toFixed(2) });
+    const allocations = allocatePaymentToSales({
+      sales: creditSales.map((sale) => ({
+        id: sale.id,
+        total: sale.total.toString(),
+        amountPaid: sale.amountPaid.toString(),
+      })),
+      paymentAmount: paymentAmount.toFixed(2),
+    });
 
     await ctx.db.$transaction(async (tx) => {
       for (const allocation of allocations) {
@@ -256,7 +275,14 @@ export async function recordCustomerPayment(raw: unknown): Promise<ActionResult<
     const balance = creditSales.reduce((sum, sale) => sum.plus(sale.total.toString()).minus(sale.amountPaid.toString()), new Decimal(0));
     const amount = new Decimal(input.amount); if (amount.greaterThan(balance)) return { ok: false, error: "Payment cannot exceed the outstanding balance." };
 
-    const allocations = allocatePaymentToSales({ sales: creditSales, paymentAmount: input.amount });
+    const allocations = allocatePaymentToSales({
+      sales: creditSales.map((sale) => ({
+        id: sale.id,
+        total: sale.total.toString(),
+        amountPaid: sale.amountPaid.toString(),
+      })),
+      paymentAmount: input.amount,
+    });
 
     await ctx.db.$transaction(async (tx) => {
       for (const allocation of allocations) {

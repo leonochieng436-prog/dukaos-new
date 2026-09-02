@@ -1,0 +1,3 @@
+name,sku,selling_price,cost_price,barcode,category,brand,supplier,unit,description,min_stock,reorder_level,opening_warehouse,opening_quantity
+"Coca-Cola 500ml","COLA-500","120","80","5449000000996","Beverages","Coca-Cola","Main Supplier","pc","Soft drink 500ml bottle","20","10","Main Warehouse","15"
+"Rice 5kg","RICE-5KG","600","450","","Grains","Nairobi Mills","Main Supplier","bag","Long-grain rice","10","5","Main Warehouse","8"

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { allocatePaymentToSales, calculateCustomerCreditBalance, calculateSaleOutstanding } from "./credit";
+import {
+  allocatePaymentToSales,
+  calculateCustomerCreditBalance,
+  calculateSaleOutstanding,
+  getFinalSettlementMethod,
+} from "./credit";
 
 describe("credit calculations", () => {
   it("calculates the outstanding amount for a single credit sale", () => {
@@ -30,6 +35,18 @@ describe("credit calculations", () => {
     expect(allocations).toEqual([
       { saleId: "sale-1", amount: "300.00" },
     ]);
+  });
+
+  it("reports the actual settlement method after a credit sale is cleared", () => {
+    expect(
+      getFinalSettlementMethod({
+        isCreditSale: true,
+        payments: [
+          { method: "CREDIT" },
+          { method: "MPESA" },
+        ],
+      }),
+    ).toBe("MPESA");
   });
 
   it("rejects a payment that exceeds the total outstanding receivables", () => {

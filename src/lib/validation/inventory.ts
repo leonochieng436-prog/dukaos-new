@@ -18,3 +18,18 @@ export const adjustStockSchema = z
     { message: "Unit cost is required when increasing stock", path: ["unitCost"] }
   );
 export type AdjustStockInput = z.infer<typeof adjustStockSchema>;
+
+export const addStockSchema = z.object({
+  warehouseId: z.string().min(1, "Select a warehouse"),
+  variantId: z.string().min(1, "Select a product"),
+  quantity: z
+    .string()
+    .min(1, "Quantity is required")
+    .refine((v) => Number(v) > 0, "Quantity must be greater than zero"),
+  unitCost: z
+    .string()
+    .min(1, "Unit cost is required")
+    .refine((v) => Number(v) >= 0, "Unit cost cannot be negative"),
+  reason: z.string().max(300).optional().or(z.literal("")),
+});
+export type AddStockInput = z.infer<typeof addStockSchema>;

@@ -1,4 +1,4 @@
-import { rawPrisma } from "./client";
+import { basePrisma } from "./client";
 
 /**
  * TENANT ISOLATION ENFORCEMENT LAYER
@@ -72,7 +72,7 @@ export function getTenantDb(organizationId: string) {
     throw new Error("getTenantDb() called without an organizationId");
   }
 
-  return rawPrisma.$extends({
+  return basePrisma.$extends({
     name: "tenant-isolation",
     query: {
       $allModels: {
