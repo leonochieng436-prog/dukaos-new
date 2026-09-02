@@ -79,10 +79,10 @@ export default async function SalesDetailPage({ params }: { params: Promise<{ sa
           </Link>
         </div>
         <div className="flex items-center gap-2">
-          <a href={`/api/receipts/${sale.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-border bg-surface px-3 py-2 text-sm font-medium text-foreground hover:bg-surface-muted">
+          <a href={`/api/receipts/${sale.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-border bg-surface px-3 py-2 text-sm font-medium text-foreground transition-all duration-150 hover:-translate-y-0.5 hover:bg-surface-muted">
             <ReceiptText size={15} /> Receipt
           </a>
-          <a href={`/api/receipts/${sale.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground">
+          <a href={`/api/receipts/${sale.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_8px_18px_rgba(15,123,108,0.16)]">
             <Tag size={15} /> Print
           </a>
         </div>
@@ -204,7 +204,7 @@ export default async function SalesDetailPage({ params }: { params: Promise<{ sa
                   </div>
                 </div>
               )}
-              <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground">
+              <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_8px_18px_rgba(15,123,108,0.16)]">
                 Apply correction
               </button>
             </form>
@@ -224,7 +224,7 @@ export default async function SalesDetailPage({ params }: { params: Promise<{ sa
                   <label className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Void reason</label>
                   <input name="reason" placeholder="Duplicate transaction / cashier error" required className="h-9 w-full rounded-[var(--radius-sm)] border border-border-strong bg-surface px-3 text-sm" />
                 </div>
-                <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-destructive px-3 py-2 text-sm font-semibold text-destructive-foreground">
+                <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-destructive px-3 py-2 text-sm font-semibold text-destructive-foreground transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(179,38,30,0.18)]">
                   <ShieldAlert size={15} /> Void sale
                 </button>
               </form>

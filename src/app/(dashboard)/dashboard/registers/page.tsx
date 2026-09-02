@@ -36,7 +36,7 @@ export default async function RegistersPage() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Register management</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">POS terminals</h1>
         </div>
-        <Link href="/dashboard/pos" className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground">
+        <Link href="/dashboard/pos" className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_8px_18px_rgba(15,123,108,0.16)]">
           Open POS <ArrowRight size={15} />
         </Link>
       </div>
