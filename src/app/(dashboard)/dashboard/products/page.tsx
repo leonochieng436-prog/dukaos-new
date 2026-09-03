@@ -45,7 +45,7 @@ export default async function ProductsPage({
     const totalStock = product.variants.reduce((sum, variant) => sum.plus(variant.inventoryItems.reduce((inner, item) => inner.plus(item.quantity.toString()), new Decimal(0))), new Decimal(0));
     const lowStock = product.variants.some((variant) => {
       const stock = variant.inventoryItems.reduce((sum, item) => sum.plus(item.quantity.toString()), new Decimal(0));
-      return stock.lessThanOrEqualTo(variant.reorderLevel.toString()) && !stock.isZero();
+      return (stock.lessThan(5) || stock.lessThanOrEqualTo(variant.reorderLevel.toString())) && !stock.isZero();
     });
     const outOfStock = totalStock.isZero();
     return { product, totalStock, lowStock, outOfStock, primaryVariant: product.variants[0] };

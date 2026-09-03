@@ -26,10 +26,7 @@ export const addStockSchema = z.object({
     .string()
     .min(1, "Quantity is required")
     .refine((v) => Number(v) > 0, "Quantity must be greater than zero"),
-  unitCost: z
-    .string()
-    .min(1, "Unit cost is required")
-    .refine((v) => Number(v) >= 0, "Unit cost cannot be negative"),
+  unitCost: z.string().optional().or(z.literal("")),
   reason: z.string().max(300).optional().or(z.literal("")),
 });
 export type AddStockInput = z.infer<typeof addStockSchema>;

@@ -193,7 +193,7 @@ export default async function ReportSectionPage({
   const lowStockRows = inventory
     .filter((variant) => {
       const quantity = variant.inventoryItems.reduce((sum, item) => sum.plus(toDecimal(item.quantity)), new Decimal(0));
-      return quantity.lte(toDecimal(variant.reorderLevel));
+      return quantity.gt(0) && (quantity.lt(5) || quantity.lte(toDecimal(variant.reorderLevel)));
     })
     .slice(0, 4)
     .map((variant) => ({

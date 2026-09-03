@@ -7,6 +7,9 @@ export const Input = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <input
     ref={ref}
+    onWheel={(event) => {
+      if (event.currentTarget.type === "number") event.currentTarget.blur();
+    }}
     className={cn(
       "h-9 w-full rounded-[var(--radius-sm)] border border-border-strong bg-surface px-3 text-sm text-foreground placeholder:text-muted-foreground",
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary",

@@ -70,7 +70,7 @@ export async function addStock(raw: unknown): Promise<ActionResult<undefined>> {
       metadata: {
         warehouseId: input.warehouseId,
         quantity: input.quantity,
-        unitCost: input.unitCost,
+        unitCost: input.unitCost || variant.costPrice.toString(),
         reason: input.reason || "Manual stock addition",
       },
     });

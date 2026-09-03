@@ -59,7 +59,7 @@ export function CustomerPaymentModalForm({ customers }: { customers: { id: strin
 
               <label className="block text-sm">
                 <span className="mb-2 block text-muted-foreground">Amount</span>
-                <input value={amount} onChange={(event) => setAmount(event.target.value)} type="number" min="0.01" step="0.01" placeholder="Amount" required className="h-10 w-full rounded border border-border-strong bg-surface px-3 text-sm" />
+                <input value={amount} onChange={(event) => setAmount(event.target.value)} onWheel={(event) => event.currentTarget.blur()} type="number" min="0.01" step="0.01" placeholder="Amount" required className="h-10 w-full rounded border border-border-strong bg-surface px-3 text-sm" />
               </label>
 
               <label className="block text-sm">

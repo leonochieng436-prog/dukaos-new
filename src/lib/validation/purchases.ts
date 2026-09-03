@@ -26,6 +26,31 @@ export const purchaseOrderSchema = z.object({
   })).min(1, "Add at least one product"),
 });
 
+export const directPurchaseSchema = z.object({
+  supplierId: z.string().min(1, "Select a supplier"),
+  branchId: z.string().min(1, "Select a branch"),
+  warehouseId: z.string().min(1, "Select a warehouse"),
+  purchaseDate: z.string().min(1, "Purchase date is required"),
+  invoiceNumber: z.string().max(80).optional().or(z.literal("")),
+  amountPaid: money,
+  paymentMethod: z.enum(["cash", "mpesa", "bank", "cheque"]),
+  paymentDate: z.string().optional().or(z.literal("")),
+  items: z.array(z.object({
+    variantId: z.string().min(1),
+    quantity,
+    unitCost: money,
+  })).min(1, "Add at least one product"),
+});
+
+export const purchasePaymentSchema = z.object({
+  purchaseId: z.string().min(1),
+  amount: z.string().min(1).refine((value) => Number(value) > 0, "Must be greater than zero"),
+  method: z.enum(["cash", "mpesa", "bank", "cheque"]),
+  reference: z.string().max(100).optional().or(z.literal("")),
+  paymentDate: z.string().optional().or(z.literal("")),
+  notes: z.string().max(500).optional().or(z.literal("")),
+});
+
 export const receivePurchaseSchema = z.object({
   purchaseOrderId: z.string().min(1),
   notes: z.string().max(500).optional().or(z.literal("")),

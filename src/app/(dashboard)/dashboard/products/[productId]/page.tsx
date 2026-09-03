@@ -97,7 +97,7 @@ export default async function ProductDetailPage({
                   (sum, i) => sum.plus(i.quantity.toString()),
                   new Decimal(0)
                 );
-                const low = stock.lessThanOrEqualTo(v.reorderLevel.toString());
+                const low = stock.gt(0) && (stock.lessThan(5) || stock.lessThanOrEqualTo(v.reorderLevel.toString()));
                 return (
                   <tr key={v.id}>
                     <td className="px-5 py-3 font-medium">{v.name}</td>

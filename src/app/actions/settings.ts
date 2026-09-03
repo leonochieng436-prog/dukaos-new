@@ -15,7 +15,7 @@ const businessProfileSchema = z.object({
   email: z.string().trim().email().max(160).optional().or(z.literal("")),
   address: z.string().trim().max(300).optional().or(z.literal("")),
 });
-const receiptSchema = z.object({ paperSize: z.enum(["80mm", "58mm", "A4"]), footerMessage: z.string().max(300), autoPrint: z.boolean(), showBusinessLogo: z.boolean(), showCashier: z.boolean(), showCustomer: z.boolean(), showSku: z.boolean(), showTax: z.boolean(), showDiscount: z.boolean(), showPaymentReference: z.boolean() });
+const receiptSchema = z.object({ paperSize: z.enum(["80mm", "58mm", "A4"]), footerMessage: z.string().max(300), autoPrint: z.boolean(), showBusinessLogo: z.boolean(), backgroundLogoUrl: z.string().max(1_100_000).refine((value) => value === "" || /^data:image\/(jpeg|png|webp|gif);base64,/.test(value), "Choose a valid image file.").optional().or(z.literal("")), showBusinessAddress: z.boolean(), showBusinessContact: z.boolean(), showBranch: z.boolean(), showReceiptNumber: z.boolean(), showDate: z.boolean(), showCashier: z.boolean(), showCustomer: z.boolean(), showSku: z.boolean(), showTax: z.boolean(), showDiscount: z.boolean(), showPaymentReference: z.boolean() });
 const notificationSchema = z.array(z.object({ eventKey: z.string().min(1).max(60), dashboard: z.boolean(), email: z.boolean(), enabled: z.boolean() })).min(1).max(20);
 
 export async function updateBusinessProfile(raw: unknown): Promise<ActionResult<undefined>> {

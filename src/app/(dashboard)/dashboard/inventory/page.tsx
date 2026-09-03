@@ -11,7 +11,7 @@ const money = new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES
 function stockStatus(quantity: Decimal, reorderLevel: Decimal) {
   if (quantity.isNegative()) return { label: "Negative stock", variant: "danger" as const };
   if (quantity.isZero()) return { label: "Out of stock", variant: "danger" as const };
-  if (quantity.lessThanOrEqualTo(5) || quantity.lessThanOrEqualTo(reorderLevel)) return { label: "Needs restocking", variant: "warning" as const };
+  if (quantity.lessThan(5) || quantity.lessThanOrEqualTo(reorderLevel)) return { label: "Needs restocking", variant: "warning" as const };
   return { label: "Healthy", variant: "success" as const };
 }
 

@@ -33,6 +33,8 @@ export const TENANT_MODELS = [
   "customer",
   "customerPayment",
   "purchaseOrder",
+  "purchase",
+  "purchasePayment",
   "sale",
   "payment",
   "expense",

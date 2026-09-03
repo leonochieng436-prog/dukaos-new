@@ -18,5 +18,5 @@ export type ReceiptData = {
   totals: { subtotal: number; discount: number; tax: number; total: number; amountPaid: number; changeGiven: number };
   payments: { method: string; amount: number; reference: string | null }[];
   notes: string | null;
-  settings: { paperSize: ReceiptPaperSize; showBusinessLogo: boolean; showCashier: boolean; showCustomer: boolean; showSku: boolean; showTax: boolean; showDiscount: boolean; showPaymentReference: boolean; footerMessage: string };
+  settings: { paperSize: ReceiptPaperSize; showBusinessLogo: boolean; backgroundLogoUrl: string | null; showBusinessAddress: boolean; showBusinessContact: boolean; showBranch: boolean; showReceiptNumber: boolean; showDate: boolean; showCashier: boolean; showCustomer: boolean; showSku: boolean; showTax: boolean; showDiscount: boolean; showPaymentReference: boolean; footerMessage: string };
 };

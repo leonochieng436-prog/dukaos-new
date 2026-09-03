@@ -115,7 +115,7 @@ export default async function CreditPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className="space-y-6">
         <Card>
           <CardHeader>
             <CardTitle>Open customer balances</CardTitle>

@@ -30,7 +30,7 @@ type ReceiptSettings = { paperSize: string; showBusinessLogo: boolean; showCashi
 
 export function ReceiptView({ sale, settings }: { sale: ReceiptData; settings: ReceiptSettings }) {
   const receipt = buildReceiptData(sale, settings);
-  return <div className={`receipt-sheet receipt-${receipt.settings.paperSize}`}>
+  return <div className={`receipt-sheet receipt-${receipt.settings.paperSize}`} style={receipt.settings.backgroundLogoUrl ? { backgroundImage: `url(${receipt.settings.backgroundLogoUrl})`, backgroundPosition: "center", backgroundRepeat: "no-repeat", backgroundSize: "70%", backgroundBlendMode: "multiply" } : undefined}>
     <div className="receipt-toolbar print:hidden"><ReceiptActions saleId={receipt.id} /></div>
     <ReceiptHeader receipt={receipt} />
     <ReceiptItems receipt={receipt} />

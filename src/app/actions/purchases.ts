@@ -6,7 +6,7 @@ import Decimal from "decimal.js";
 import { requireAuthContext, assertPermission, assertBranchAccess, AuthError } from "@/server/auth/context";
 import { recordAudit } from "@/server/services/audit";
 import { increaseStock } from "@/server/services/inventory";
-import { supplierSchema, purchaseOrderSchema, receivePurchaseSchema, supplierInvoiceSchema, supplierPaymentSchema } from "@/lib/validation/purchases";
+import { supplierSchema, purchaseOrderSchema, receivePurchaseSchema, supplierInvoiceSchema, supplierPaymentSchema, directPurchaseSchema, purchasePaymentSchema } from "@/lib/validation/purchases";
 import type { ActionResult } from "./auth";
 
 export async function createSupplier(raw: unknown): Promise<ActionResult<{ id: string }>> {
@@ -76,6 +76,89 @@ export async function createPurchaseOrder(raw: unknown): Promise<ActionResult<{ 
   } catch (e) {
     if (e instanceof AuthError) return { ok: false, error: e.message };
     throw e;
+  }
+}
+
+export async function createDirectPurchase(raw: unknown): Promise<ActionResult<{ id: string }>> {
+  try {
+    const ctx = await requireAuthContext();
+    assertPermission(ctx, "PURCHASE_CREATE");
+    const parsed = directPurchaseSchema.safeParse(raw);
+    if (!parsed.success) return { ok: false, error: "Please fix the purchase details.", fieldErrors: parsed.error.flatten().fieldErrors };
+    const input = parsed.data;
+    const branch = await ctx.db.branch.findFirst({ where: { id: input.branchId, isActive: true } });
+    if (!branch) return { ok: false, error: "Branch not found." };
+    assertBranchAccess(ctx, branch.id);
+    const warehouse = await ctx.db.warehouse.findFirst({ where: { id: input.warehouseId, branchId: branch.id, isActive: true } });
+    if (!warehouse) return { ok: false, error: "Warehouse does not belong to the selected branch." };
+    const supplier = await ctx.db.supplier.findFirst({ where: { id: input.supplierId, isActive: true } });
+    if (!supplier) return { ok: false, error: "Supplier not found." };
+    const variants = await ctx.db.productVariant.findMany({ where: { id: { in: input.items.map((item) => item.variantId) }, isActive: true, product: { isActive: true, organizationId: ctx.organizationId } } });
+    if (variants.length !== input.items.length) return { ok: false, error: "One or more products were not found." };
+    const subtotal = input.items.reduce((sum, item) => sum.plus(new Decimal(item.quantity).times(item.unitCost)), new Decimal(0));
+    const paid = new Decimal(input.amountPaid);
+    if (paid.greaterThan(subtotal)) return { ok: false, error: "Amount paid cannot exceed the purchase total." };
+    const paymentStatus = paid.isZero() ? "PENDING" : paid.lessThan(subtotal) ? "PARTIALLY_PAID" : "PAID";
+    const purchase = await ctx.db.$transaction(async (tx) => {
+      const created = await tx.purchase.create({
+        data: {
+          organizationId: ctx.organizationId,
+          branchId: branch.id,
+          warehouseId: warehouse.id,
+          supplierId: supplier.id,
+          purchaseNumber: `PUR-${Date.now()}`,
+          supplierInvoiceNumber: input.invoiceNumber || null,
+          purchaseDate: new Date(input.purchaseDate),
+          subtotal: subtotal.toFixed(2), total: subtotal.toFixed(2),
+          paymentStatus,
+          paidOn: paymentStatus === "PAID" ? new Date(input.paymentDate || input.purchaseDate) : null,
+          createdById: ctx.userId,
+          items: { create: input.items.map((item) => ({ variantId: item.variantId, quantity: item.quantity, unitCost: item.unitCost, total: new Decimal(item.quantity).times(item.unitCost).toFixed(2) })) },
+        },
+        include: { items: true },
+      });
+      for (const item of created.items) {
+        const stock = await increaseStock(tx as unknown as Prisma.TransactionClient, { organizationId: ctx.organizationId, warehouseId: warehouse.id, variantId: item.variantId, quantity: item.quantity, unitCost: item.unitCost, type: "PURCHASE", referenceType: "Purchase", referenceId: created.id, createdById: ctx.userId });
+        await tx.purchaseItem.update({ where: { id: item.id }, data: { batchId: stock.batch.id } });
+      }
+      if (!paid.isZero()) {
+        await tx.purchasePayment.create({ data: { organizationId: ctx.organizationId, purchaseId: created.id, amount: paid.toFixed(2), method: input.paymentMethod, paymentDate: new Date(input.paymentDate || input.purchaseDate), createdById: ctx.userId } });
+      }
+      return created;
+    }, { maxWait: 15000, timeout: 30000 });
+    await recordAudit({ organizationId: ctx.organizationId, userId: ctx.userId, action: "PURCHASE_CREATED", entityType: "Purchase", entityId: purchase.id, metadata: { purchaseNumber: purchase.purchaseNumber, total: subtotal.toFixed(2), paymentStatus } });
+    revalidatePath("/dashboard/purchases");
+    revalidatePath("/dashboard/inventory");
+    return { ok: true, data: { id: purchase.id } };
+  } catch (e) {
+    if (e instanceof AuthError) return { ok: false, error: e.message };
+    return { ok: false, error: e instanceof Error ? e.message : "Could not create purchase." };
+  }
+}
+
+export async function recordPurchasePayment(raw: unknown): Promise<ActionResult<undefined>> {
+  try {
+    const ctx = await requireAuthContext();
+    assertPermission(ctx, "PURCHASE_APPROVE");
+    const parsed = purchasePaymentSchema.safeParse(raw);
+    if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid payment." };
+    const input = parsed.data;
+    const purchase = await ctx.db.purchase.findFirst({ where: { id: input.purchaseId }, include: { payments: true } });
+    if (!purchase) return { ok: false, error: "Purchase not found." };
+    const currentPaid = purchase.payments.reduce((sum, payment) => sum.plus(payment.amount.toString()), new Decimal(0));
+    const amount = new Decimal(input.amount);
+    if (amount.greaterThan(new Decimal(purchase.total.toString()).minus(currentPaid))) return { ok: false, error: "Payment cannot exceed the purchase balance." };
+    const newPaid = currentPaid.plus(amount);
+    await ctx.db.$transaction(async (tx) => {
+      await tx.purchasePayment.create({ data: { organizationId: ctx.organizationId, purchaseId: purchase.id, amount: amount.toFixed(2), method: input.method, reference: input.reference || null, notes: input.notes || null, paymentDate: new Date(input.paymentDate || new Date()), createdById: ctx.userId } });
+      await tx.purchase.update({ where: { id: purchase.id }, data: { paymentStatus: newPaid.greaterThanOrEqualTo(purchase.total) ? "PAID" : "PARTIALLY_PAID", paidOn: newPaid.greaterThanOrEqualTo(purchase.total) ? new Date(input.paymentDate || new Date()) : null } });
+    });
+    await recordAudit({ organizationId: ctx.organizationId, userId: ctx.userId, action: "PURCHASE_PAYMENT_RECORDED", entityType: "Purchase", entityId: purchase.id, metadata: { amount: amount.toFixed(2), paymentStatus: newPaid.greaterThanOrEqualTo(purchase.total) ? "PAID" : "PARTIALLY_PAID" } });
+    revalidatePath("/dashboard/purchases");
+    return { ok: true, data: undefined };
+  } catch (e) {
+    if (e instanceof AuthError) return { ok: false, error: e.message };
+    return { ok: false, error: e instanceof Error ? e.message : "Could not record payment." };
   }
 }
 

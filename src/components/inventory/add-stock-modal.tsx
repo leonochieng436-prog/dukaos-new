@@ -25,7 +25,6 @@ export function AddStockModal({
   const [error, setError] = useState<string | null>(null);
   const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id ?? "");
   const [quantity, setQuantity] = useState("");
-  const [unitCost, setUnitCost] = useState("");
   const [reason, setReason] = useState("Manual stock addition");
 
   if (!open) return null;
@@ -33,7 +32,6 @@ export function AddStockModal({
   function resetForm() {
     setError(null);
     setQuantity("");
-    setUnitCost("");
     setReason("Manual stock addition");
     setWarehouseId(warehouses[0]?.id ?? "");
   }
@@ -44,8 +42,8 @@ export function AddStockModal({
   }
 
   function handleSubmit() {
-    if (!warehouseId || !variantId || !quantity || !unitCost) {
-      setError("Please fill in the warehouse, quantity, and unit cost.");
+    if (!warehouseId || !variantId || !quantity) {
+      setError("Please fill in the warehouse and quantity.");
       return;
     }
 
@@ -54,7 +52,7 @@ export function AddStockModal({
         warehouseId,
         variantId,
         quantity,
-        unitCost,
+        unitCost: "",
         reason,
       });
 
@@ -121,19 +119,6 @@ export function AddStockModal({
           </label>
 
           <label className="block text-sm">
-            <span className="mb-2 block text-muted-foreground">Unit cost (KES)</span>
-            <input
-              value={unitCost}
-              onChange={(event) => setUnitCost(event.target.value)}
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="85.00"
-              className="h-10 w-full rounded border border-border-strong bg-surface px-3 text-sm"
-            />
-          </label>
-
-          <label className="block text-sm">
             <span className="mb-2 block text-muted-foreground">Note</span>
             <input
               value={reason}
@@ -147,7 +132,7 @@ export function AddStockModal({
             <Button type="button" variant="secondary" size="sm" onClick={handleClose}>
               Cancel
             </Button>
-            <Button type="button" size="sm" onClick={handleSubmit} disabled={isPending || !warehouseId || !quantity || !unitCost}>
+            <Button type="button" size="sm" onClick={handleSubmit} disabled={isPending || !warehouseId || !quantity}>
               {isPending ? "Saving..." : "Add stock"}
             </Button>
           </div>

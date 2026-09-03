@@ -219,7 +219,7 @@ export async function correctSale(raw: unknown): Promise<ActionResult<{ id: stri
         data: {
           organizationId: ctx.organizationId,
           saleId: sale.id,
-          method: paymentMethod as Prisma.PaymentMethod,
+          method: paymentMethod,
           amount: proposedPaid.toFixed(2),
           status: "CONFIRMED",
         },
