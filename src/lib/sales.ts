@@ -1,5 +1,51 @@
 import Decimal from "decimal.js";
 
+export type SalePaymentMethod = "CASH" | "MPESA" | "CARD" | "BANK_TRANSFER" | "CREDIT" | "OTHER";
+
+export type SalePayment = {
+  method: SalePaymentMethod;
+  amount: string;
+};
+
+export function validateSalePayments({
+  total,
+  paymentMethod,
+  payments,
+}: {
+  total: string;
+  paymentMethod: SalePaymentMethod;
+  payments: SalePayment[];
+}) {
+  try {
+    const totalValue = new Decimal(total);
+    if (!totalValue.isFinite() || totalValue.isNegative()) return { ok: false as const, error: "Sale total is invalid." };
+    if (payments.length === 0 || payments.some((payment) => !new Decimal(payment.amount).isFinite() || new Decimal(payment.amount).isNegative())) {
+      return { ok: false as const, error: "Payment amounts must be valid and cannot be negative." };
+    }
+
+    const creditPayments = payments.filter((payment) => payment.method === "CREDIT");
+    if (creditPayments.length > 1) return { ok: false as const, error: "A sale can have only one credit payment." };
+    if (creditPayments.length > 0 && paymentMethod !== "CREDIT") return { ok: false as const, error: "The payment method does not match the credit payment." };
+
+    const nonCreditTotal = payments
+      .filter((payment) => payment.method !== "CREDIT")
+      .reduce((sum, payment) => sum.plus(payment.amount), new Decimal(0));
+    const creditAmount = creditPayments.length === 1 ? new Decimal(creditPayments[0].amount) : new Decimal(0);
+    const tenderedTotal = nonCreditTotal.plus(creditAmount);
+
+    if (paymentMethod === "CREDIT" && creditPayments.length !== 1) return { ok: false as const, error: "Credit sales require a credit payment." };
+    if (creditPayments.length === 1 && !creditAmount.equals(Decimal.max(totalValue.minus(nonCreditTotal), 0))) {
+      return { ok: false as const, error: "Credit payment must equal the remaining sale balance." };
+    }
+    if (creditPayments.length === 0 && nonCreditTotal.lessThan(totalValue)) return { ok: false as const, error: "Payment is less than the sale total." };
+    if (creditPayments.length > 0 && tenderedTotal.lessThan(totalValue)) return { ok: false as const, error: "Payments do not cover the sale total." };
+
+    return { ok: true as const, nonCreditTotal, creditAmount };
+  } catch {
+    return { ok: false as const, error: "Payment amounts must be valid and cannot be negative." };
+  }
+}
+
 export function summarizeSaleCorrection({
   total,
   amountPaid,

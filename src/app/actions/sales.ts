@@ -11,6 +11,7 @@ import { z } from "zod";
 import type { ActionResult } from "./auth";
 import { getRegisterSummary } from "@/server/services/register-summary";
 import { matchesRegisterCredential } from "@/lib/register-credentials";
+import { validateSalePayments } from "@/lib/sales";
 
 export async function openCashSession(raw: unknown): Promise<ActionResult<undefined>> {
   try {
@@ -41,7 +42,6 @@ export async function createSale(raw: unknown): Promise<ActionResult<{ id: strin
     const input = parsed.data; assertBranchAccess(ctx, input.branchId);
     const payments = input.payments?.length ? input.payments : [{ method: input.paymentMethod, amount: input.amountPaid }];
     const cashPaid = payments.filter((payment) => payment.method !== "CREDIT").reduce((sum, payment) => sum.plus(payment.amount), new Decimal(0));
-    const creditPortion = payments.some((payment) => payment.method === "CREDIT") ? Decimal.max(new Decimal(0), new Decimal(input.amountPaid || "0").minus(cashPaid)) : new Decimal(0);
     if (payments.some((payment) => payment.method === "CREDIT") && !input.customerId) return { ok: false, error: "Select a customer for credit sales." };
     const branch = await ctx.db.branch.findFirst({ where: { id: input.branchId, isActive: true } });
     const register = await ctx.db.register.findFirst({ where: { id: input.registerId, branchId: input.branchId, branch: { organizationId: ctx.organizationId }, isActive: true }, include: { branch: true } });
@@ -52,6 +52,8 @@ export async function createSale(raw: unknown): Promise<ActionResult<{ id: strin
     if (variants.length !== input.items.length) return { ok: false, error: "One or more products were not found." };
     const lines = input.items.map((item) => { const variant = variants.find((candidate) => candidate.id === item.variantId)!; const quantity = new Decimal(item.quantity); const price = new Decimal(variant.sellingPrice.toString()); return { ...item, quantity, price, total: quantity.times(price), variant }; });
     const subtotal = lines.reduce((sum, line) => sum.plus(line.total), new Decimal(0));
+    const finalPaymentValidation = validateSalePayments({ total: subtotal.toFixed(2), paymentMethod: input.paymentMethod, payments });
+    if (!finalPaymentValidation.ok) return { ok: false, error: finalPaymentValidation.error };
     const sale = await ctx.db.$transaction(async (tx) => {
       let cogs = new Decimal(0);
       const saleItems = [];
@@ -61,7 +63,6 @@ export async function createSale(raw: unknown): Promise<ActionResult<{ id: strin
         cogs = cogs.plus(consumed.totalCost);
         saleItems.push({ variantId: line.variantId, productNameSnapshot: line.variant.product.name, variantNameSnapshot: line.variant.name, skuSnapshot: line.variant.sku, quantity: line.quantity.toString(), unitPrice: line.price.toString(), unitCost: unitCost.toString(), total: line.total.toString() });
       }
-      if (cashPaid.lessThan(subtotal) && !payments.some((payment) => payment.method === "CREDIT")) throw new Error("Payment is less than the sale total.");
       if (input.customerId && payments.some((payment) => payment.method === "CREDIT")) {
         const customer = await tx.customer.findFirst({ where: { id: input.customerId, organizationId: ctx.organizationId } });
         if (!customer) throw new Error("Customer not found.");
@@ -218,7 +219,7 @@ export async function correctSale(raw: unknown): Promise<ActionResult<{ id: stri
         data: {
           organizationId: ctx.organizationId,
           saleId: sale.id,
-          method: paymentMethod as any,
+          method: paymentMethod as Prisma.PaymentMethod,
           amount: proposedPaid.toFixed(2),
           status: "CONFIRMED",
         },

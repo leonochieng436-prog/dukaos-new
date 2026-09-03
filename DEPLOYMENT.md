@@ -36,7 +36,8 @@
    - `DATABASE_URL`, `DIRECT_URL`
    - `AUTH_SECRET` (generate with `openssl rand -base64 32`)
    - `NEXT_PUBLIC_APP_URL` (your production domain)
-   - M-Pesa, email, SMS, WhatsApp, storage credentials once those
+   - M-Pesa credentials and `MPESA_CALLBACK_SECRET` once the callback
+     adapter is enabled; email, SMS, WhatsApp, storage credentials once those
      integrations are wired up (Phase 9) — leave blank until then.
 
 4. **Deploy.** Vercel builds with `npm run build`

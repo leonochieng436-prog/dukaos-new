@@ -1,11 +1,11 @@
 # ── Database ──────────────────────────────────────────────
 # Local PostgreSQL for development (Docker or local install)
-DATABASE_URL="postgresql://neondb_owner:npg_Hr1tSaZlq3we@ep-gentle-tree-a5ggxpze-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+DATABASE_URL="postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require"
 # Direct connection (used by Prisma Migrate)
-DIRECT_URL="postgresql://neondb_owner:npg_Hr1tSaZlq3we@ep-gentle-tree-a5ggxpze-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+DIRECT_URL="postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require"
 
 # ── Auth ──────────────────────────────────────────────────
-AUTH_SECRET="Pv9bxWXR7TDo659xwLAdSEa1JmE2T57lqqUCtsr90rI="
+AUTH_SECRET="replace-with-a-random-secret"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
 # ── M-Pesa (Safaricom Daraja) ─────────────────────────────
@@ -16,6 +16,7 @@ M_PESA_CONSUMER_SECRET=""
 M_PESA_PASSKEY=""
 M_PESA_SHORTCODE=""
 M_PESA_CALLBACK_URL=""
+MPESA_CALLBACK_SECRET=""
 
 # ── Messaging ─────────────────────────────────────────────
 EMAIL_API_KEY=""

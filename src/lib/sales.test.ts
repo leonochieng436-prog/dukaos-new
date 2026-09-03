@@ -1,5 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { summarizeSaleCorrection, buildSaleVersionTimeline, buildReceiptPreview, buildSaleCorrectionImpact } from "./sales";
+import { summarizeSaleCorrection, buildSaleVersionTimeline, buildReceiptPreview, buildSaleCorrectionImpact, validateSalePayments } from "./sales";
+
+describe("sale payment validation", () => {
+  it("accepts a fully paid sale", () => {
+    expect(validateSalePayments({ total: "100.00", paymentMethod: "CASH", payments: [{ method: "CASH", amount: "100.00" }] }).ok).toBe(true);
+  });
+
+  it("accepts split payment with the exact remaining credit balance", () => {
+    expect(validateSalePayments({ total: "100.00", paymentMethod: "CREDIT", payments: [{ method: "CASH", amount: "40.00" }, { method: "CREDIT", amount: "60.00" }] }).ok).toBe(true);
+  });
+
+  it("rejects an underpaid non-credit sale", () => {
+    expect(validateSalePayments({ total: "100.00", paymentMethod: "MPESA", payments: [{ method: "MPESA", amount: "99.99" }] })).toEqual({ ok: false, error: "Payment is less than the sale total." });
+  });
+
+  it("rejects a credit amount that does not match the balance", () => {
+    expect(validateSalePayments({ total: "100.00", paymentMethod: "CREDIT", payments: [{ method: "CREDIT", amount: "1.00" }] })).toEqual({ ok: false, error: "Credit payment must equal the remaining sale balance." });
+  });
+
+  it("rejects duplicate credit payments", () => {
+    expect(validateSalePayments({ total: "100.00", paymentMethod: "CREDIT", payments: [{ method: "CREDIT", amount: "50.00" }, { method: "CREDIT", amount: "50.00" }] })).toEqual({ ok: false, error: "A sale can have only one credit payment." });
+  });
+});
 
 describe("sales correction summary", () => {
   it("calculates the corrected total, collected amount and change", () => {
