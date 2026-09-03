@@ -8,6 +8,7 @@ export const registerOrganizationSchema = z.object({
   phone: z.string().min(7).max(20).optional().or(z.literal("")),
   businessType: z.string().min(1).max(60).default("general_store"),
   country: z.string().length(2).default("KE"),
+  plan: z.enum(["starter", "growth", "enterprise"]).default("starter"),
 });
 export type RegisterOrganizationInput = z.infer<
   typeof registerOrganizationSchema

@@ -62,6 +62,14 @@ export async function requireAuthContext(): Promise<AuthContext> {
     throw new AuthError("No access to this organization", 403);
   }
 
+  const subscription = await rawPrisma.subscription.findUnique({
+    where: { organizationId },
+    select: { status: true },
+  });
+  if (subscription?.status === "pending_payment") {
+    redirect("/account-pending");
+  }
+
   const userBranches = await rawPrisma.userBranch.findMany({
     where: { userId: session.userId, branch: { organizationId } },
     select: { branchId: true },

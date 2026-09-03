@@ -25,6 +25,12 @@ export type ActionResult<T = undefined> =
   | { ok: true; data: T; warnings?: string[] }
   | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
 
+const PLAN_LIMITS = {
+  starter: { branchLimit: 1, userLimit: 5 },
+  growth: { branchLimit: 5, userLimit: 25 },
+  enterprise: { branchLimit: 999, userLimit: 999 },
+} as const;
+
 async function clientIp(): Promise<string | null> {
   const h = await headers();
   return h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
@@ -105,11 +111,10 @@ export async function registerOrganization(
     await tx.subscription.create({
       data: {
         organizationId: org.id,
-        plan: "trial",
-        status: "trialing",
-        branchLimit: 3,
-        userLimit: 10,
-        trialEndsAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14),
+        plan: input.plan,
+        status: "pending_payment",
+        branchLimit: PLAN_LIMITS[input.plan].branchLimit,
+        userLimit: PLAN_LIMITS[input.plan].userLimit,
       },
     });
 
@@ -133,7 +138,7 @@ export async function registerOrganization(
     userAgent: h.get("user-agent"),
   });
 
-  return { ok: true, data: { redirectTo: "/dashboard" } };
+  return { ok: true, data: { redirectTo: "/account-pending" } };
 }
 
 export async function login(
@@ -183,6 +188,11 @@ export async function login(
     };
   }
 
+  const subscription = await rawPrisma.subscription.findUnique({
+    where: { organizationId: membership.organizationId },
+    select: { status: true },
+  });
+
   await destroyCurrentSession();
   const h = await headers();
   await createSession({
@@ -201,7 +211,14 @@ export async function login(
     ipAddress: await clientIp(),
   });
 
-  return { ok: true, data: { redirectTo: "/dashboard" } };
+  return {
+    ok: true,
+    data: {
+      redirectTo: subscription?.status === "pending_payment"
+        ? "/account-pending"
+        : "/dashboard",
+    },
+  };
 }
 
 const RESET_TOKEN_TTL_MS = 1000 * 60 * 30; // 30 minutes

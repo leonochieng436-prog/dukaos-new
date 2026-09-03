@@ -20,6 +20,12 @@ const BUSINESS_TYPES = [
   { value: "wholesale", label: "Wholesaler / distributor" },
 ];
 
+const PLANS = [
+  { value: "starter", label: "Starter", description: "For small shops getting started" },
+  { value: "growth", label: "Growth", description: "For growing businesses" },
+  { value: "enterprise", label: "Enterprise", description: "For multi-branch operations" },
+] as const;
+
 export function RegisterForm() {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +43,7 @@ export function RegisterForm() {
       phone: String(formData.get("phone") || ""),
       businessType: String(formData.get("businessType") || "general_store"),
       country: "KE",
+      plan: String(formData.get("plan") || "starter"),
     };
 
     startTransition(async () => {
@@ -91,6 +98,26 @@ export function RegisterForm() {
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="plan">Choose a package</Label>
+        <select
+          id="plan"
+          name="plan"
+          className="h-11 w-full rounded-[var(--radius-sm)] border border-border-strong bg-surface px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          defaultValue="starter"
+          required
+        >
+          {PLANS.map((plan) => (
+            <option key={plan.value} value={plan.value}>
+              {plan.label} — {plan.description}
+            </option>
+          ))}
+        </select>
+        <p className="text-[12px] text-muted-foreground">
+          You will receive payment instructions after registration. Your account starts after confirmation.
+        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
