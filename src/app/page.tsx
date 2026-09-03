@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/server/auth/session";
-import { LandingPage } from "@/components/landing-page";
+import { MarketingLandingPage } from "@/components/marketing-landing-page";
 
 export default async function RootPage() {
   const session = await getCurrentSession();
@@ -9,5 +9,5 @@ export default async function RootPage() {
     redirect("/dashboard");
   }
 
-  return <LandingPage />;
+  return <MarketingLandingPage />;
 }

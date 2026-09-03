@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowRight,
   BarChart3,
@@ -42,7 +43,11 @@ const faqs = [
 ];
 
 function Logo() {
-  return <Link href="/" className="flex items-center gap-2" aria-label="DukaOS home"><span className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-sm font-bold text-white shadow-[0_8px_20px_rgba(15,123,108,0.2)]">D</span><span className="text-lg font-bold tracking-[0.16em]">DUKA<span className="text-primary">OS</span></span></Link>;
+  return <Link href="/" className="flex items-center gap-2" aria-label="DukaOS home"><Image src="/images/DukaOS-logo2.png" alt="DukaOS" width={160} height={40} className="h-10 w-auto object-contain" /></Link>;
+}
+
+function FooterLogo() {
+  return <Link href="/" className="flex items-center gap-2" aria-label="DukaOS home"><span className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-sm font-bold text-white shadow-[0_8px_20px_rgba(15,123,108,0.2)]">D</span><span className="text-lg font-bold tracking-[0.16em]">DUKA<span className="text-[#8de0c1]">OS</span></span></Link>;
 }
 
 function ProductPreview() {
@@ -82,6 +87,6 @@ export function LandingPage() {
 
     <section className="bg-[#dff3e9]"><div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-8 px-5 py-16 sm:px-8 md:flex-row md:items-center lg:px-10"><div><p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Your next business day</p><h2 className="mt-3 max-w-xl text-3xl font-semibold tracking-tight sm:text-4xl">Ready to take control of your business?</h2><p className="mt-3 text-sm text-muted-foreground">Create your workspace and start seeing the full picture.</p></div><Link href="/register" className="inline-flex shrink-0 items-center gap-2 rounded-md bg-primary px-5 py-3.5 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(15,123,108,0.18)] hover:bg-primary-hover">Create your account <ArrowRight size={17} /></Link></div></section>
 
-    <footer className="bg-[#103f38] text-white"><div className="mx-auto flex max-w-7xl flex-col gap-8 px-5 py-10 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-10"><div><Logo /><p className="mt-3 text-xs text-emerald-50/60">The operating system for growing businesses.</p></div><div className="flex flex-wrap gap-x-6 gap-y-3 text-xs text-emerald-50/70"><a href="#features" className="hover:text-white">Features</a><a href="#pricing" className="hover:text-white">Pricing</a><a href="#how-it-works" className="hover:text-white">How it works</a><Link href="/login" className="hover:text-white">Log in</Link><Link href="/register" className="hover:text-white">Get started</Link></div><p className="text-xs text-emerald-50/45">&copy; {new Date().getFullYear()} DukaOS</p></div></footer>
+    <footer className="bg-[#103f38] text-white"><div className="mx-auto flex max-w-7xl flex-col gap-8 px-5 py-10 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-10"><div><FooterLogo /><p className="mt-3 text-xs text-emerald-50/60">The operating system for growing businesses.</p></div><div className="flex flex-wrap gap-x-6 gap-y-3 text-xs text-emerald-50/70"><a href="#features" className="hover:text-white">Features</a><a href="#pricing" className="hover:text-white">Pricing</a><a href="#how-it-works" className="hover:text-white">How it works</a><Link href="/login" className="hover:text-white">Log in</Link><Link href="/register" className="hover:text-white">Get started</Link></div><p className="text-xs text-emerald-50/45">&copy; {new Date().getFullYear()} DukaOS</p></div></footer>
   </main>;
 }
