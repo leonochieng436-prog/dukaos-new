@@ -91,7 +91,7 @@ model Warehouse {
   inventoryItems     InventoryItem[]
   inventoryMovements InventoryMovement[]
   purchaseOrders     PurchaseOrder[]
-  purchases           Purchase[]
+  purchases          Purchase[]
   stockCounts        StockCount[]
   transfersFrom      StockTransfer[]     @relation("TransferFromWarehouse")
   transfersTo        StockTransfer[]     @relation("TransferToWarehouse")
@@ -103,14 +103,14 @@ model Warehouse {
 }
 
 model Register {
-  id           String               @id @default(cuid())
+  id           String              @id @default(cuid())
   branchId     String
   name         String
-  isActive     Boolean              @default(true)
-  createdAt    DateTime             @default(now())
+  isActive     Boolean             @default(true)
+  createdAt    DateTime            @default(now())
   cashSessions CashSession[]
   credentials  RegisterCredential?
-  branch       Branch               @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  branch       Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
   sales        Sale[]
 
   @@index([branchId])
@@ -153,6 +153,32 @@ model User {
   organizations      UserOrganization[]
 
   @@map("users")
+}
+
+model PlatformAdmin {
+  id           String         @id @default(cuid())
+  name         String
+  email        String         @unique
+  passwordHash String
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  sessions     AdminSession[]
+  approvals    Subscription[] @relation("SubscriptionApprovedBy")
+}
+
+model AdminSession {
+  id        String        @id @default(cuid())
+  adminId   String
+  tokenHash String        @unique
+  ipAddress String?
+  userAgent String?
+  expiresAt DateTime
+  createdAt DateTime      @default(now())
+  admin     PlatformAdmin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@map("admin_sessions")
 }
 
 model UserOrganization {
@@ -1012,16 +1038,21 @@ model Expense {
 }
 
 model Subscription {
-  id               String       @id @default(cuid())
-  organizationId   String       @unique
-  plan             String
-  status           String       @default("trialing")
-  branchLimit      Int          @default(1)
-  userLimit        Int          @default(5)
-  trialEndsAt      DateTime?
-  currentPeriodEnd DateTime?
-  createdAt        DateTime     @default(now())
-  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id                 String         @id @default(cuid())
+  organizationId     String         @unique
+  plan               String
+  status             String         @default("trialing")
+  branchLimit        Int            @default(1)
+  userLimit          Int            @default(5)
+  trialEndsAt        DateTime?
+  currentPeriodEnd   DateTime?
+  paymentReference   String?
+  paymentSubmittedAt DateTime?
+  approvedAt         DateTime?
+  approvedByAdminId  String?
+  createdAt          DateTime       @default(now())
+  organization       Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  approvedByAdmin    PlatformAdmin? @relation("SubscriptionApprovedBy", fields: [approvedByAdminId], references: [id], onDelete: SetNull)
 
   @@map("subscriptions")
 }

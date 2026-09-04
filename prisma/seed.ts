@@ -39,6 +39,16 @@ async function seedPermissionCatalog() {
   console.log(`Seeded ${Object.keys(PERMISSIONS).length} permissions.`);
 }
 
+async function seedPlatformAdmin() {
+  const password = process.env.SEED_ADMIN_PASSWORD ?? "admin@123";
+  await prisma.platformAdmin.upsert({
+    where: { email: "admin@gmail.com" },
+    update: { passwordHash: await hashPassword(password), name: "DukaOS Administrator", isActive: true },
+    create: { email: "admin@gmail.com", name: "DukaOS Administrator", passwordHash: await hashPassword(password) },
+  });
+  console.log(`Platform admin: admin@gmail.com / ${password}`);
+}
+
 function humanize(key: string) {
   return key
     .toLowerCase()
@@ -413,6 +423,7 @@ async function seedDemoTenant() {
 
 async function main() {
   await seedPermissionCatalog();
+  await seedPlatformAdmin();
   if (process.env.NODE_ENV !== "production") {
     await seedDemoTenant();
   } else {

@@ -66,7 +66,7 @@ export async function requireAuthContext(): Promise<AuthContext> {
     where: { organizationId },
     select: { status: true },
   });
-  if (subscription?.status === "pending_payment") {
+  if (subscription?.status === "pending_payment" || subscription?.status === "paused") {
     redirect("/account-pending");
   }
 

@@ -214,7 +214,7 @@ export async function login(
   return {
     ok: true,
     data: {
-      redirectTo: subscription?.status === "pending_payment"
+      redirectTo: subscription?.status === "pending_payment" || subscription?.status === "paused"
         ? "/account-pending"
         : "/dashboard",
     },

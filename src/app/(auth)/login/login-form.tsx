@@ -43,6 +43,11 @@ export function LoginForm() {
         <p className="mt-2 text-sm leading-6 text-muted-foreground">Access your sales, inventory, customers, and business reports.</p>
       </div>
 
+      <div className="grid grid-cols-2 rounded-md border border-border bg-surface-muted p-1 text-center text-sm font-semibold">
+        <span className="rounded bg-surface px-3 py-2 text-foreground shadow-sm">Business login</span>
+        <a href="/admin/login" className="rounded px-3 py-2 text-muted-foreground hover:text-primary">Admin login</a>
+      </div>
+
       {error && (
         <div className="rounded-[var(--radius-sm)] bg-danger-tint px-3 py-2 text-[13px] text-danger">
           {error}
