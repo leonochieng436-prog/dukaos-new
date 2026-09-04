@@ -1,5 +1,6 @@
 import { AdminLoginForm } from "./admin-login-form";
+import AuthLayout from "@/app/(auth)/layout";
 
 export default function AdminLoginPage() {
-  return <AdminLoginForm />;
+  return <AuthLayout><AdminLoginForm /></AuthLayout>;
 }
