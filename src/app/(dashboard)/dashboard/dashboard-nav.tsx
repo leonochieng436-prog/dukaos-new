@@ -6,6 +6,7 @@ import {
   BarChart3,
   Boxes,
   DollarSign,
+  FileText,
   LayoutDashboard,
   Package,
   Settings,
@@ -34,6 +35,7 @@ const ICONS = {
   expenses: Wallet,
   reports: BarChart3,
   billing: Wallet,
+  invoices: FileText,
   settings: Settings,
 } as const;
 

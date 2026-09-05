@@ -46,6 +46,10 @@ export const PERMISSIONS = {
   CUSTOMERS_MANAGE: "CUSTOMERS_MANAGE",
   CUSTOMER_CREDIT_MANAGE: "CUSTOMER_CREDIT_MANAGE",
 
+  // Invoicing
+  INVOICES_VIEW: "INVOICES_VIEW",
+  INVOICES_MANAGE: "INVOICES_MANAGE",
+
   // Expenses
   EXPENSE_VIEW: "EXPENSE_VIEW",
   EXPENSE_CREATE: "EXPENSE_CREATE",
@@ -93,6 +97,7 @@ export const PERMISSION_GROUPS: Record<string, PermissionKey[]> = {
     "PURCHASE_RECEIVE",
   ],
   Customers: ["CUSTOMERS_VIEW", "CUSTOMERS_MANAGE", "CUSTOMER_CREDIT_MANAGE"],
+  Invoicing: ["INVOICES_VIEW", "INVOICES_MANAGE"],
   Expenses: ["EXPENSE_VIEW", "EXPENSE_CREATE", "EXPENSE_DELETE"],
   "Reports & Analytics": ["REPORTS_VIEW", "REPORTS_EXPORT", "ANALYTICS_VIEW"],
   Administration: [
@@ -134,6 +139,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionKey[]> = {
     "CUSTOMERS_VIEW",
     "CUSTOMERS_MANAGE",
     "CUSTOMER_CREDIT_MANAGE",
+    "INVOICES_VIEW",
+    "INVOICES_MANAGE",
     "EXPENSE_VIEW",
     "EXPENSE_CREATE",
     "REPORTS_VIEW",
@@ -148,6 +155,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionKey[]> = {
     "PRODUCTS_VIEW",
     "CUSTOMERS_VIEW",
     "CUSTOMERS_MANAGE",
+    "INVOICES_VIEW",
+    "INVOICES_MANAGE",
   ],
   inventory_manager: [
     "PRODUCTS_VIEW",

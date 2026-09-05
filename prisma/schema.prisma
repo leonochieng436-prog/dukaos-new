@@ -33,6 +33,9 @@ model Organization {
   customers            Customer[]
   expenseCategories    ExpenseCategory[]
   expenses             Expense[]
+  invoices             Invoice[]
+  invoiceActivities    InvoiceActivity[]
+  invoicePayments      InvoicePayment[]
   notificationSettings NotificationSetting[]
   paymentAccounts      PaymentAccount[]
   paymentProviderCfgs  PaymentProviderConfig[]
@@ -58,27 +61,27 @@ model Organization {
 }
 
 model Branch {
-  id             String          @id @default(cuid())
-  organizationId String
-  name           String
-  code           String
-  address        String?
-  phone          String?
-  isActive       Boolean         @default(true)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  cashSessions   CashSession[]
-  expenses       Expense[]
-  purchaseOrders PurchaseOrder[]
-  purchases      Purchase[]
-  registers      Register[]
-  sales          Sale[]
-  transfersFrom  StockTransfer[] @relation("TransferFromBranch")
-  transfersTo    StockTransfer[] @relation("TransferToBranch")
-  userBranches   UserBranch[]
-  warehouses     Warehouse[]
-  paymentAccounts PaymentAccount[]
+  id                  String               @id @default(cuid())
+  organizationId      String
+  name                String
+  code                String
+  address             String?
+  phone               String?
+  isActive            Boolean              @default(true)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cashSessions        CashSession[]
+  expenses            Expense[]
+  purchaseOrders      PurchaseOrder[]
+  purchases           Purchase[]
+  registers           Register[]
+  sales               Sale[]
+  transfersFrom       StockTransfer[]      @relation("TransferFromBranch")
+  transfersTo         StockTransfer[]      @relation("TransferToBranch")
+  userBranches        UserBranch[]
+  warehouses          Warehouse[]
+  paymentAccounts     PaymentAccount[]
   mpesaPaymentIntents MpesaPaymentIntent[]
 
   @@unique([organizationId, code])
@@ -353,6 +356,7 @@ model Product {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
   bundleItems       BundleItem[]      @relation("BundleParent")
+  invoiceItems      InvoiceItem[]
   partOfBundles     BundleItem[]      @relation("BundleComponent")
   suppliers         ProductSupplier[]
   variants          ProductVariant[]
@@ -788,6 +792,7 @@ model Customer {
   notes          String?
   createdAt      DateTime          @default(now())
   payments       CustomerPayment[]
+  invoices       Invoice[]
   organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   saleReturns    SaleReturn[]
   sales          Sale[]
@@ -811,6 +816,93 @@ model CustomerPayment {
 
   @@index([organizationId, customerId])
   @@map("customer_payments")
+}
+
+model Invoice {
+  id                   String            @id @default(cuid())
+  organizationId       String
+  customerId           String
+  invoiceNumber        String
+  status               InvoiceStatus     @default(DRAFT)
+  issueDate            DateTime          @default(now())
+  dueDate              DateTime
+  currency             String            @default("KES")
+  subtotal             Decimal           @db.Decimal(14, 2)
+  discountTotal        Decimal           @default(0) @db.Decimal(14, 2)
+  taxTotal             Decimal           @default(0) @db.Decimal(14, 2)
+  total                Decimal           @db.Decimal(14, 2)
+  amountPaid           Decimal           @default(0) @db.Decimal(14, 2)
+  amountDue            Decimal           @db.Decimal(14, 2)
+  notes                String?
+  paymentInstructions  String?
+  publicToken          String            @unique
+  publicTokenRevokedAt DateTime?
+  pdfKey               String?
+  voidedAt             DateTime?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  organization         Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer             Customer          @relation(fields: [customerId], references: [id])
+  items                InvoiceItem[]
+  payments             InvoicePayment[]
+  activities           InvoiceActivity[]
+
+  @@unique([organizationId, invoiceNumber])
+  @@index([organizationId, status])
+  @@index([organizationId, dueDate])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  productId   String?
+  description String
+  quantity    Decimal  @db.Decimal(14, 3)
+  unitPrice   Decimal  @db.Decimal(14, 2)
+  discount    Decimal  @default(0) @db.Decimal(14, 2)
+  taxRate     Decimal  @default(0) @db.Decimal(6, 3)
+  taxAmount   Decimal  @default(0) @db.Decimal(14, 2)
+  total       Decimal  @db.Decimal(14, 2)
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@index([productId])
+  @@map("invoice_items")
+}
+
+model InvoicePayment {
+  id                    String               @id @default(cuid())
+  organizationId        String
+  invoiceId             String
+  amount                Decimal              @db.Decimal(14, 2)
+  method                InvoicePaymentMethod
+  reference             String?
+  provider              String?
+  providerTransactionId String?
+  paidAt                DateTime             @default(now())
+  createdAt             DateTime             @default(now())
+  organization          Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoice               Invoice              @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, invoiceId])
+  @@map("invoice_payments")
+}
+
+model InvoiceActivity {
+  id             String              @id @default(cuid())
+  organizationId String
+  invoiceId      String
+  userId         String?
+  type           InvoiceActivityType
+  metadata       Json?
+  createdAt      DateTime            @default(now())
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoice        Invoice             @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, invoiceId, createdAt])
+  @@map("invoice_activities")
 }
 
 model CashSession {
@@ -856,40 +948,40 @@ model CashMovement {
 }
 
 model Sale {
-  id               String            @id @default(cuid())
-  organizationId   String
-  branchId         String
-  registerId       String
-  cashSessionId    String?
-  customerId       String?
-  cashierId        String
-  receiptNumber    String
-  status           SaleStatus        @default(COMPLETED)
-  subtotal         Decimal           @db.Decimal(14, 2)
-  discountTotal    Decimal           @default(0) @db.Decimal(14, 2)
-  taxTotal         Decimal           @default(0) @db.Decimal(14, 2)
-  total            Decimal           @db.Decimal(14, 2)
-  cogsTotal        Decimal           @default(0) @db.Decimal(14, 2)
-  amountPaid       Decimal           @default(0) @db.Decimal(14, 2)
-  changeGiven      Decimal           @default(0) @db.Decimal(14, 2)
-  isCreditSale     Boolean           @default(false)
-  voidedById       String?
-  voidedAt         DateTime?
-  voidReason       String?
-  notes            String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  customerPayments CustomerPayment[]
+  id                  String               @id @default(cuid())
+  organizationId      String
+  branchId            String
+  registerId          String
+  cashSessionId       String?
+  customerId          String?
+  cashierId           String
+  receiptNumber       String
+  status              SaleStatus           @default(COMPLETED)
+  subtotal            Decimal              @db.Decimal(14, 2)
+  discountTotal       Decimal              @default(0) @db.Decimal(14, 2)
+  taxTotal            Decimal              @default(0) @db.Decimal(14, 2)
+  total               Decimal              @db.Decimal(14, 2)
+  cogsTotal           Decimal              @default(0) @db.Decimal(14, 2)
+  amountPaid          Decimal              @default(0) @db.Decimal(14, 2)
+  changeGiven         Decimal              @default(0) @db.Decimal(14, 2)
+  isCreditSale        Boolean              @default(false)
+  voidedById          String?
+  voidedAt            DateTime?
+  voidReason          String?
+  notes               String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  customerPayments    CustomerPayment[]
   mpesaPaymentIntents MpesaPaymentIntent[]
-  payments         Payment[]
-  items            SaleItem[]
-  returns          SaleReturn[]
-  branch           Branch            @relation(fields: [branchId], references: [id])
-  cashSession      CashSession?      @relation(fields: [cashSessionId], references: [id])
-  cashier          User              @relation("SaleCashier", fields: [cashierId], references: [id])
-  customer         Customer?         @relation(fields: [customerId], references: [id])
-  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  register         Register          @relation(fields: [registerId], references: [id])
+  payments            Payment[]
+  items               SaleItem[]
+  returns             SaleReturn[]
+  branch              Branch               @relation(fields: [branchId], references: [id])
+  cashSession         CashSession?         @relation(fields: [cashSessionId], references: [id])
+  cashier             User                 @relation("SaleCashier", fields: [cashierId], references: [id])
+  customer            Customer?            @relation(fields: [customerId], references: [id])
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  register            Register             @relation(fields: [registerId], references: [id])
 
   @@unique([organizationId, receiptNumber])
   @@index([organizationId, branchId, createdAt])
@@ -969,7 +1061,7 @@ model PaymentAccount {
   lastError               String?
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
-  organization            Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization            Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   branch                  Branch?               @relation(fields: [branchId], references: [id], onDelete: Cascade)
   mpesaPaymentIntents     MpesaPaymentIntent[]
 
@@ -1230,6 +1322,37 @@ enum PaymentStatus {
   CONFIRMED
   FAILED
   REVERSED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  VIEWED
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  VOID
+  CANCELLED
+}
+
+enum InvoicePaymentMethod {
+  CASH
+  MPESA
+  BANK_TRANSFER
+  CARD
+  CHEQUE
+  OTHER
+}
+
+enum InvoiceActivityType {
+  CREATED
+  UPDATED
+  SENT
+  VIEWED
+  PAYMENT_RECORDED
+  PARTIALLY_PAID
+  PAID
+  VOIDED
 }
 
 enum MpesaEnvironment {

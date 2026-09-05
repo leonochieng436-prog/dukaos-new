@@ -26,6 +26,7 @@ const NAV: DashboardNavItem[] = [
   { href: "/dashboard/purchases", label: "Purchases", icon: "purchases" },
   { href: "/dashboard/credit", label: "Credit", icon: "customers" },
   { href: "/dashboard/customers", label: "Customers", icon: "customers" },
+  { href: "/dashboard/invoices", label: "Invoices", icon: "invoices" },
   { href: "/dashboard/expenses", label: "Expenses", icon: "expenses" },
   { href: "/dashboard/reports", label: "Reports", icon: "reports" },
   { href: "/dashboard/billing", label: "Billing", icon: "billing" },
@@ -85,7 +86,7 @@ export default async function DashboardLayout({
         </div>
         <div className="flex-1 px-3 py-5">
           <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Workspace</p>
-          <DashboardNav items={NAV.slice(0, 9)} />
+          <DashboardNav items={NAV.slice(0, 10)} />
           <p className="mb-2 mt-7 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Administration</p>
           <DashboardNav items={adminNav} />
         </div>
@@ -122,7 +123,7 @@ export default async function DashboardLayout({
           <div className="flex items-center gap-3">
             <span className="hidden text-right sm:block"><span className="block text-sm font-semibold">{user.name}</span><span className="block text-[11px] text-muted-foreground">Owner</span></span>
             <span className="grid h-9 w-9 place-items-center rounded-full bg-primary-tint text-sm font-bold text-primary">{user.name.slice(0, 1).toUpperCase()}</span>
-            <MobileDashboardNav items={NAV.slice(0, 9)} />
+            <MobileDashboardNav items={NAV.slice(0, 10)} />
           </div>
         </header>
         <main className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">{children}</main>
