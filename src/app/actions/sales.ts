@@ -12,6 +12,7 @@ import type { ActionResult } from "./auth";
 import { getRegisterSummary } from "@/server/services/register-summary";
 import { matchesRegisterCredential } from "@/lib/register-credentials";
 import { validateSalePayments } from "@/lib/sales";
+import { assertSubscriptionActive } from "@/server/services/billing";
 
 export async function openCashSession(raw: unknown): Promise<ActionResult<undefined>> {
   try {
@@ -38,6 +39,7 @@ export async function openCashSession(raw: unknown): Promise<ActionResult<undefi
 export async function createSale(raw: unknown): Promise<ActionResult<{ id: string }>> {
   try {
     const ctx = await requireAuthContext(); assertPermission(ctx, "SALES_CREATE");
+    await assertSubscriptionActive(ctx);
     const parsed = saleSchema.safeParse(raw); if (!parsed.success) return { ok: false, error: "Add products and choose a payment method.", fieldErrors: parsed.error.flatten().fieldErrors };
     const input = parsed.data; assertBranchAccess(ctx, input.branchId);
     const payments = input.payments?.length ? input.payments : [{ method: input.paymentMethod, amount: input.amountPaid }];

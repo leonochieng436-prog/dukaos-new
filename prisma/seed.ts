@@ -320,6 +320,7 @@ async function seedDemoTenant() {
 
     const variant = await prisma.productVariant.create({
       data: {
+        organizationId: org.id,
         productId: product.id,
         sku: `${product.id.slice(-6).toUpperCase()}-DEF`,
         name: p.name,
@@ -342,6 +343,7 @@ async function seedDemoTenant() {
       const qty = wh.id === nairobiWarehouse.id ? p.openingQty : Math.round(p.openingQty * 0.4);
       const batch = await prisma.batch.create({
         data: {
+          organizationId: org.id,
           warehouseId: wh.id,
           variantId: variant.id,
           batchNumber: "OPENING",
@@ -352,6 +354,7 @@ async function seedDemoTenant() {
       });
       await prisma.inventoryItem.create({
         data: {
+          organizationId: org.id,
           warehouseId: wh.id,
           variantId: variant.id,
           batchId: batch.id,

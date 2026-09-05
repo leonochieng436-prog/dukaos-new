@@ -36,6 +36,19 @@ STORAGE_REGION=""
 # ── Generic card/bank payment provider (future) ───────────
 PAYMENT_PROVIDER_API_KEY=""
 
+# ── Stripe subscriptions ──────────────────────────────────
+STRIPE_SECRET_KEY=""
+STRIPE_WEBHOOK_SECRET=""
+STRIPE_STARTER_PRICE_ID=""
+STRIPE_GROWTH_PRICE_ID=""
+STRIPE_ENTERPRISE_PRICE_ID=""
+
+# ── AI support assistant (optional) ────────────────────────
+# Any OpenAI-compatible chat completions endpoint can be used.
+SUPPORT_AI_API_KEY=""
+SUPPORT_AI_API_URL=""
+SUPPORT_AI_MODEL="gpt-4o-mini"
+
 # ── Scheduled jobs (Vercel Cron) ───────────────────────────
 # Shared secret Vercel Cron sends as a header so /api/cron/* routes can
 # verify the request actually came from the scheduler, not the public

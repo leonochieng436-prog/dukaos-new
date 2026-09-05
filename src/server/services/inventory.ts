@@ -55,6 +55,7 @@ export async function increaseStock(tx: Tx, params: IncreaseStockParams) {
 
   const batch = await tx.batch.create({
     data: {
+      organizationId: params.organizationId,
       warehouseId: params.warehouseId,
       variantId: params.variantId,
       unitCost: params.unitCost.toString(),
@@ -67,6 +68,7 @@ export async function increaseStock(tx: Tx, params: IncreaseStockParams) {
 
   await tx.inventoryItem.create({
     data: {
+      organizationId: params.organizationId,
       warehouseId: params.warehouseId,
       variantId: params.variantId,
       batchId: batch.id,

@@ -10,6 +10,20 @@ import { customerSchema, customerPaymentSchema, returnSchema } from "@/lib/valid
 import { allocatePaymentToSales } from "@/lib/credit";
 import type { ActionResult } from "./auth";
 
+const SALE_PAYMENT_METHODS: Record<string, string> = {
+  cash: "CASH",
+  mpesa: "MPESA",
+  bank: "BANK_TRANSFER",
+  bank_transfer: "BANK_TRANSFER",
+  card: "CARD",
+  credit: "CREDIT",
+  other: "OTHER",
+};
+
+function toSalePaymentMethod(method: string) {
+  return SALE_PAYMENT_METHODS[method.toLowerCase()] ?? "OTHER";
+}
+
 async function reconcileSettledCreditSale(
   tx: any,
   saleId: string,
@@ -30,7 +44,7 @@ async function reconcileSettledCreditSale(
   if (paid.lessThan(total)) return;
 
   const existingCreditPayment = sale.payments.find((payment: { method: string }) => payment.method === "CREDIT");
-  const paymentMethod = actualMethod.toUpperCase();
+  const paymentMethod = toSalePaymentMethod(actualMethod);
   const previousMetadata = existingCreditPayment?.metadata && typeof existingCreditPayment.metadata === "object" && !Array.isArray(existingCreditPayment.metadata)
     ? existingCreditPayment.metadata as Record<string, unknown>
     : {};

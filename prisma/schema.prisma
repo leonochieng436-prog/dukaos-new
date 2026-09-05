@@ -36,6 +36,9 @@ model Organization {
   notificationSettings NotificationSetting[]
   paymentProviderCfgs  PaymentProviderConfig[]
   products             Product[]
+  productVariants      ProductVariant[]
+  batches              Batch[]
+  inventoryItems       InventoryItem[]
   purchaseOrders       PurchaseOrder[]
   purchases            Purchase[]
   purchasePayments     PurchasePayment[]
@@ -361,6 +364,7 @@ model Product {
 
 model ProductVariant {
   id                 String              @id @default(cuid())
+  organizationId     String
   productId          String
   sku                String
   name               String
@@ -381,6 +385,7 @@ model ProductVariant {
   inventoryMovements InventoryMovement[]
   barcodes           ProductBarcode[]
   product            Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   taxRate            TaxRate?            @relation(fields: [taxRateId], references: [id])
   purchaseOrderItems PurchaseOrderItem[]
   purchaseItems      PurchaseItem[]
@@ -388,6 +393,7 @@ model ProductVariant {
 
   @@unique([productId, sku])
   @@index([productId])
+  @@index([organizationId])
   @@map("product_variants")
 }
 
@@ -641,25 +647,29 @@ model SupplierPayment {
 }
 
 model InventoryItem {
-  id          String         @id @default(cuid())
-  warehouseId String
-  variantId   String
-  batchId     String?
-  quantity    Decimal        @default(0) @db.Decimal(14, 3)
-  averageCost Decimal        @default(0) @db.Decimal(14, 4)
-  updatedAt   DateTime       @updatedAt
-  batch       Batch?         @relation(fields: [batchId], references: [id])
-  variant     ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
-  warehouse   Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  id             String         @id @default(cuid())
+  organizationId String
+  warehouseId    String
+  variantId      String
+  batchId        String?
+  quantity       Decimal        @default(0) @db.Decimal(14, 3)
+  averageCost    Decimal        @default(0) @db.Decimal(14, 4)
+  updatedAt      DateTime       @updatedAt
+  batch          Batch?         @relation(fields: [batchId], references: [id])
+  variant        ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  warehouse      Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([warehouseId, variantId, batchId])
   @@index([warehouseId])
   @@index([variantId])
+  @@index([organizationId])
   @@map("inventory_items")
 }
 
 model Batch {
   id             String              @id @default(cuid())
+  organizationId String
   warehouseId    String
   variantId      String
   batchNumber    String?
@@ -670,10 +680,12 @@ model Batch {
   receivedAt     DateTime            @default(now())
   variant        ProductVariant      @relation(fields: [variantId], references: [id], onDelete: Cascade)
   warehouse      Warehouse           @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   inventoryItems InventoryItem[]
   movements      InventoryMovement[]
 
   @@index([warehouseId, variantId, receivedAt])
+  @@index([organizationId])
   @@map("batches")
 }
 

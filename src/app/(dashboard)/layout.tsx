@@ -4,6 +4,7 @@ import { rawPrisma } from "@/server/db/client";
 import { logout } from "@/app/actions/auth";
 import { DashboardNav, type DashboardNavItem } from "./dashboard/dashboard-nav";
 import { MobileDashboardNav } from "./dashboard/mobile-dashboard-nav";
+import { SupportAssistant } from "@/components/support-assistant";
 import {
   LogOut,
   Store,
@@ -126,6 +127,7 @@ export default async function DashboardLayout({
         </header>
         <main className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>
+      <SupportAssistant />
     </div>
   );
 }

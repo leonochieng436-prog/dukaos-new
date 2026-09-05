@@ -391,6 +391,7 @@ export async function importProductsFromSpreadsheet(raw: unknown): Promise<Actio
 
         const variant = await tx.productVariant.create({
           data: {
+            organizationId: ctx.organizationId,
             productId: product.id,
             sku,
             name,
@@ -518,6 +519,7 @@ export async function createProduct(
 
       const variant = await tx.productVariant.create({
         data: {
+          organizationId: ctx.organizationId,
           productId: product.id,
           sku: input.sku,
           name: product.name,
@@ -698,6 +700,7 @@ export async function addProductVariant(
     const variant = await ctx.db.$transaction(async (tx) => {
       const v = await tx.productVariant.create({
         data: {
+          organizationId: ctx.organizationId,
           productId: input.productId,
           sku: input.sku,
           name: input.name,

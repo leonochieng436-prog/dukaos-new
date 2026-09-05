@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireAuthContext, assertPermission, assertOwner, AuthError } from "@/server/auth/context";
 import { hashPassword } from "@/server/auth/password";
 import { recordAudit } from "@/server/services/audit";
+import { assertBranchLimitNotExceeded } from "@/server/services/billing";
 import { createBranchSchema } from "@/lib/validation/auth";
 import type { ActionResult } from "./auth";
 
@@ -18,6 +19,7 @@ export async function createRegister(raw: unknown): Promise<ActionResult<{ id: s
     const ctx = await requireAuthContext();
     assertPermission(ctx, "BRANCHES_MANAGE");
     assertOwner(ctx);
+    await assertBranchLimitNotExceeded(ctx);
     const parsed = registerSchema.safeParse(raw);
     if (!parsed.success) return { ok: false, error: "Enter a register name and branch." };
     const branch = await ctx.db.branch.findFirst({ where: { id: parsed.data.branchId, isActive: true } });

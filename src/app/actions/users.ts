@@ -6,6 +6,7 @@ import { rawPrisma } from "@/server/db/client";
 import { requireAuthContext, assertPermission, assertOwner, AuthError } from "@/server/auth/context";
 import { hashPassword } from "@/server/auth/password";
 import { recordAudit } from "@/server/services/audit";
+import { assertUserLimitNotExceeded } from "@/server/services/billing";
 import { inviteUserSchema } from "@/lib/validation/auth";
 import type { ActionResult } from "./auth";
 
@@ -23,6 +24,7 @@ export async function inviteUser(
   try {
     const ctx = await requireAuthContext();
     assertPermission(ctx, "USERS_MANAGE");
+    await assertUserLimitNotExceeded(ctx);
 
     const parsed = inviteUserSchema.safeParse(raw);
     if (!parsed.success) {

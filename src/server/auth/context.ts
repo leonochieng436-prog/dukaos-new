@@ -4,6 +4,7 @@ import { getCurrentSession } from "./session";
 import { rawPrisma } from "@/server/db/client";
 import { getTenantDb } from "@/server/db/tenant";
 import type { PermissionKey } from "@/lib/rbac/permissions";
+import { computeEffectiveSubscriptionStatus, isSubscriptionBlocking } from "@/lib/billing";
 
 export class AuthError extends Error {
   status: number;
@@ -64,9 +65,9 @@ export async function requireAuthContext(): Promise<AuthContext> {
 
   const subscription = await rawPrisma.subscription.findUnique({
     where: { organizationId },
-    select: { status: true },
+    select: { status: true, trialEndsAt: true },
   });
-  if (subscription?.status === "pending_payment" || subscription?.status === "paused") {
+  if (subscription && isSubscriptionBlocking(computeEffectiveSubscriptionStatus(subscription))) {
     redirect("/account-pending");
   }
 
