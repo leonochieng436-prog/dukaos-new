@@ -5,13 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BusinessProfileForm } from "./business-profile-form";
 import { NotificationSettingsForm, ReceiptSettingsForm } from "./receipt-notification-form";
 import { ReceiptPreview } from "./receipt-preview";
+import { MpesaForm } from "./mpesa-form";
 
 export default async function SettingsPage({ searchParams }: { searchParams?: Promise<{ section?: string }> }) {
   const ctx = await requireAuthContext();
   assertPermission(ctx, "SETTINGS_MANAGE");
   const section = (await searchParams)?.section ?? "general";
   const show = (name: string) => section === "general" || section === name;
-  const [organization, branches, users, products, subscription, warehouses, registers, roles, taxRates, providers, sessions, auditLogs, receiptSettings, notificationSettings] = await Promise.all([
+  const [organization, branches, users, products, subscription, warehouses, registers, roles, taxRates, providers, sessions, auditLogs, receiptSettings, notificationSettings, mpesaAccount, branchOptions] = await Promise.all([
     ctx.db.organization.findUniqueOrThrow({ where: { id: ctx.organizationId } }),
     ctx.db.branch.count({ where: { isActive: true } }),
     ctx.db.userOrganization.count({ where: { isActive: true } }),
@@ -26,6 +27,8 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
     ctx.db.auditLog.findMany({ take: 8, include: { user: true }, orderBy: { createdAt: "desc" } }),
     ctx.db.receiptSettings.findUnique({ where: { organizationId: ctx.organizationId } }),
     ctx.db.notificationSetting.findMany({ orderBy: { eventKey: "asc" } }),
+    ctx.db.paymentAccount.findFirst({ where: { provider: "MPESA", isDefault: true }, select: { id: true, branchId: true, displayName: true, accountType: true, shortcode: true, environment: true, status: true } }),
+    ctx.db.branch.findMany({ where: { isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
 
   const cards = [
@@ -83,7 +86,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
       {show("roles") && <Card id="roles"><CardHeader><CardTitle className="flex items-center gap-2"><KeyRound size={17} className="text-primary" /> Roles & permissions</CardTitle></CardHeader><CardContent><div className="grid gap-3 sm:grid-cols-2">{roles.map((role) => <div key={role.id} className="rounded-[var(--radius-sm)] border border-border px-3 py-3"><p className="text-sm font-medium">{role.name}</p><p className="mt-1 text-[12px] text-muted-foreground">{role.permissions.length} permissions · {role.isSystem ? "System role" : "Custom role"}</p></div>)}</div></CardContent></Card>}
       {show("security") && <div id="security" className="grid gap-6 xl:grid-cols-2"><Card><CardHeader><CardTitle className="flex items-center gap-2"><ShieldCheck size={17} className="text-primary" /> Active sessions</CardTitle></CardHeader><CardContent><p className="mb-3 text-[12px] text-muted-foreground">Current sessions in this organization: {sessions.length}</p>{sessions.slice(0, 5).map((session) => <div key={session.id} className="flex justify-between border-t border-border py-3"><div><p className="text-sm font-medium">{session.user.name}</p><p className="text-[12px] text-muted-foreground">{session.userAgent ?? "Unknown device"}</p></div><p className="text-[12px] text-muted-foreground">{session.createdAt.toLocaleDateString("en-KE")}</p></div>)}</CardContent></Card></div>}
       {show("taxes") && <Card id="taxes"><CardHeader><CardTitle className="flex items-center gap-2"><Receipt size={17} className="text-primary" /> Tax rates</CardTitle></CardHeader><CardContent>{taxRates.map((tax) => <div key={tax.id} className="flex justify-between border-t border-border py-3 first:border-0 first:pt-0"><span className="text-sm">{tax.name}</span><span className="text-sm font-semibold font-tabular">{tax.rate.toString()}%</span></div>)}</CardContent></Card>}
-      {show("payments") && <Card id="payments"><CardHeader><CardTitle className="flex items-center gap-2"><CreditCard size={17} className="text-primary" /> Payment providers</CardTitle></CardHeader><CardContent>{providers.length === 0 ? <p className="text-sm text-muted-foreground">No provider credentials are configured.</p> : providers.map((provider) => <div key={provider.id} className="flex justify-between border-t border-border py-3 first:border-0 first:pt-0"><span className="text-sm">{provider.provider}</span><span className={provider.isActive ? "text-sm text-success" : "text-sm text-muted-foreground"}>{provider.isActive ? "Connected" : "Inactive"}</span></div>)}</CardContent></Card>}
+      {show("payments") && <Card id="payments"><CardHeader><CardTitle className="flex items-center gap-2"><CreditCard size={17} className="text-primary" /> M-Pesa</CardTitle><p className="text-[12px] text-muted-foreground">Connect a branch-owned Daraja account. Credentials are encrypted on the server and never displayed after saving.</p></CardHeader><CardContent><MpesaForm account={mpesaAccount} branches={branchOptions} /></CardContent></Card>}
       {show("receipts") && <Card id="receipts"><CardHeader><CardTitle className="flex items-center gap-2"><FileText size={17} className="text-primary" /> Receipts & invoices</CardTitle><p className="text-[12px] text-muted-foreground">These preferences are used by receipt and invoice rendering.</p></CardHeader><CardContent><div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(280px,0.8fr)]"><ReceiptSettingsForm settings={receiptSettings} /><ReceiptPreview settings={receiptSettings ?? { paperSize: "80mm", footerMessage: "Thank you for shopping with us!", showBusinessLogo: true, backgroundLogoUrl: null, showBusinessAddress: true, showBusinessContact: true, showBranch: true, showReceiptNumber: true, showDate: true, showCashier: true, showCustomer: true, showSku: true, showTax: true, showDiscount: true, showPaymentReference: true }} business={organization} /></div></CardContent></Card>}
       {show("notifications") && <Card id="notifications"><CardHeader><CardTitle>Notifications</CardTitle><p className="text-[12px] text-muted-foreground">Choose where operational alerts are delivered. Email delivery requires an email provider.</p></CardHeader><CardContent><NotificationSettingsForm settings={notificationSettings} /></CardContent></Card>}
       {show("integrations") && <Card id="integrations"><CardHeader><CardTitle>Integrations</CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">Stored payment provider configurations are shown above. External email, SMS, storage, and WhatsApp integrations are not configured.</p></CardContent></Card>}

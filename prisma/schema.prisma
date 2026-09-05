@@ -34,7 +34,9 @@ model Organization {
   expenseCategories    ExpenseCategory[]
   expenses             Expense[]
   notificationSettings NotificationSetting[]
+  paymentAccounts      PaymentAccount[]
   paymentProviderCfgs  PaymentProviderConfig[]
+  mpesaPaymentIntents  MpesaPaymentIntent[]
   products             Product[]
   productVariants      ProductVariant[]
   batches              Batch[]
@@ -76,6 +78,8 @@ model Branch {
   transfersTo    StockTransfer[] @relation("TransferToBranch")
   userBranches   UserBranch[]
   warehouses     Warehouse[]
+  paymentAccounts PaymentAccount[]
+  mpesaPaymentIntents MpesaPaymentIntent[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -876,6 +880,7 @@ model Sale {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   customerPayments CustomerPayment[]
+  mpesaPaymentIntents MpesaPaymentIntent[]
   payments         Payment[]
   items            SaleItem[]
   returns          SaleReturn[]
@@ -943,6 +948,64 @@ model PaymentProviderConfig {
 
   @@unique([organizationId, provider])
   @@map("payment_provider_configs")
+}
+
+model PaymentAccount {
+  id                      String                @id @default(cuid())
+  organizationId          String
+  branchId                String?
+  provider                String                @default("MPESA")
+  accountType             MpesaAccountType
+  displayName             String
+  shortcode               String
+  consumerKeyEncrypted    String
+  consumerSecretEncrypted String
+  passkeyEncrypted        String
+  environment             MpesaEnvironment      @default(SANDBOX)
+  status                  MpesaConnectionStatus @default(NOT_CONFIGURED)
+  isActive                Boolean               @default(false)
+  isDefault               Boolean               @default(false)
+  lastTestedAt            DateTime?
+  lastError               String?
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+  organization            Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch                  Branch?               @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  mpesaPaymentIntents     MpesaPaymentIntent[]
+
+  @@index([organizationId, branchId])
+  @@index([organizationId, status])
+  @@map("payment_accounts")
+}
+
+model MpesaPaymentIntent {
+  id                 String            @id @default(cuid())
+  organizationId     String
+  branchId           String
+  paymentAccountId   String
+  saleId             String?
+  amount             Decimal           @db.Decimal(14, 2)
+  phoneNumber        String
+  accountReference   String
+  checkoutRequestId  String?           @unique
+  merchantRequestId  String?
+  mpesaReceiptNumber String?
+  status             MpesaIntentStatus @default(PENDING)
+  resultCode         Int?
+  resultDescription  String?
+  metadata           Json?
+  initiatedAt        DateTime          @default(now())
+  completedAt        DateTime?
+  updatedAt          DateTime          @updatedAt
+  organization       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch             Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  paymentAccount     PaymentAccount    @relation(fields: [paymentAccountId], references: [id], onDelete: Cascade)
+  sale               Sale?             @relation(fields: [saleId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+  @@index([organizationId, initiatedAt])
+  @@index([accountReference])
+  @@map("mpesa_payment_intents")
 }
 
 model ReceiptSettings {
@@ -1167,6 +1230,32 @@ enum PaymentStatus {
   CONFIRMED
   FAILED
   REVERSED
+}
+
+enum MpesaEnvironment {
+  SANDBOX
+  PRODUCTION
+}
+
+enum MpesaAccountType {
+  TILL
+  PAYBILL
+}
+
+enum MpesaConnectionStatus {
+  NOT_CONFIGURED
+  PENDING
+  ACTIVE
+  FAILED
+  DISCONNECTED
+}
+
+enum MpesaIntentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
 }
 
 enum SaleReturnStatus {

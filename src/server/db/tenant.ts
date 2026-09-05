@@ -38,6 +38,8 @@ export const TENANT_MODELS = [
   "purchasePayment",
   "sale",
   "payment",
+  "paymentAccount",
+  "mpesaPaymentIntent",
   "expense",
   "expenseCategory",
   "auditLog",
