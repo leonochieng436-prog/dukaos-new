@@ -580,36 +580,77 @@ function PricingSection() {
             First 10 clients
           </span>
         </div>
-        <div className="mt-8 grid gap-4 lg:grid-cols-2">
-          <div className="rounded-xl border border-white/15 bg-white/10 p-5">
+        <div className="mt-8 grid gap-4 lg:grid-cols-3">
+          <div className="rounded-xl border border-[#8de0c1]/50 bg-[#8de0c1]/10 p-5">
             <p className="text-xs font-bold uppercase tracking-[0.15em] text-[#8de0c1]">
-              Complete hardware package
+              Simple Desktop POS
             </p>
             <div className="mt-3 flex items-baseline gap-3">
-              <p className="text-3xl font-semibold">KES 21,000</p>
-              <p className="text-sm text-emerald-50/50 line-through">KES 30,000</p>
+              <p className="text-3xl font-semibold">KES 35,000</p>
+              <p className="text-xs text-emerald-50/65">one-time</p>
             </div>
-            <p className="mt-1 text-xs text-emerald-50/65">30% off, one-time installation</p>
-            <ul className="mt-5 grid gap-2 text-sm text-emerald-50/80 sm:grid-cols-2">
-              {["DukaOS software setup", "POS terminal", "Receipt printer", "Barcode scanner", "Cash drawer", "Accessories and cables", "Business configuration", "Product setup assistance", "Register and user setup", "Installation and staff training"].map((item) => <li key={item} className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-[#8de0c1]" />{item}</li>)}
-            </ul>
-          </div>
-          <div className="rounded-xl border border-[#8de0c1]/40 bg-[#8de0c1]/10 p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.15em] text-[#8de0c1]">
-              Already have your hardware?
+            <p className="mt-1 text-xs text-emerald-50/65">
+              A clean starting point for small shops, boutiques, salons, and growing businesses.
             </p>
-            <div className="mt-3 flex items-baseline gap-3">
-              <p className="text-3xl font-semibold">KES 7,000</p>
-              <p className="text-sm text-emerald-50/50 line-through">KES 10,000</p>
-            </div>
-            <p className="mt-1 text-xs text-emerald-50/65">30% off, one-time setup</p>
-            <ul className="mt-5 grid gap-2 text-sm text-emerald-50/80">
-              {["DukaOS installation", "POS and register configuration", "Business and product setup assistance", "User setup", "Printer and scanner configuration", "Staff onboarding and basic training"].map((item) => <li key={item} className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-[#8de0c1]" />{item}</li>)}
+            <ul className="mt-5 grid gap-2 text-sm text-emerald-50/85">
+              {["Desktop system unit", "19-20 inch monitor", "Keyboard and mouse", "Thermal receipt printer", "DukaOS POS installation", "Register and business configuration", "Basic product setup", "Staff training"].map((item) => <li key={item} className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-[#8de0c1]" />{item}</li>)}
             </ul>
             <p className="mt-5 border-t border-white/15 pt-4 text-sm font-medium text-[#d8f7e8]">
-              You provide the hardware. We make it work with DukaOS.
+              Subscription from KES 1,200/month.
             </p>
           </div>
+          <div className="rounded-xl border border-white/15 bg-white/10 p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.15em] text-[#8de0c1]">
+              Complete Retail POS
+            </p>
+            <div className="mt-3 flex items-baseline gap-3">
+              <p className="text-3xl font-semibold">KES 50,000+</p>
+              <p className="text-xs text-emerald-50/65">configured to fit</p>
+            </div>
+            <p className="mt-1 text-xs text-emerald-50/65">
+              Add the hardware and setup needed for busier retail operations.
+            </p>
+            <ul className="mt-5 grid gap-2 text-sm text-emerald-50/85">
+              {["Everything in Simple Desktop POS", "Barcode scanner", "Cash drawer", "Power backup options", "Expanded product and register setup", "Staff onboarding and training"].map((item) => <li key={item} className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-[#8de0c1]" />{item}</li>)}
+            </ul>
+            <p className="mt-5 border-t border-white/15 pt-4 text-sm font-medium text-[#d8f7e8]">
+              Optional hardware is quoted around your workflow.
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/15 bg-white/10 p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.15em] text-[#8de0c1]">
+              Custom POS Setup
+            </p>
+            <div className="mt-3 flex items-baseline gap-3">
+              <p className="text-3xl font-semibold">Quote</p>
+              <p className="text-xs text-emerald-50/65">for complex operations</p>
+            </div>
+            <p className="mt-1 text-xs text-emerald-50/65">
+              Built for supermarkets, multi-branch businesses, and multiple-register deployments.
+            </p>
+            <ul className="mt-5 grid gap-2 text-sm text-emerald-50/85">
+              {["Multi-register configuration", "Multi-branch setup", "Custom hardware planning", "Advanced onboarding", "Workflow and permissions setup", "Deployment support"].map((item) => <li key={item} className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-[#8de0c1]" />{item}</li>)}
+            </ul>
+            <p className="mt-5 border-t border-white/15 pt-4 text-sm font-medium text-[#d8f7e8]">
+              Talk to sales about your operating model.
+            </p>
+          </div>
+        </div>
+        <div className="mt-5 rounded-xl border border-white/15 bg-white/5 p-5">
+          <p className="text-sm font-semibold text-[#d8f7e8]">Already have your hardware?</p>
+          <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <p className="text-2xl font-semibold">KES 7,000</p>
+            <p className="text-sm text-emerald-50/50 line-through">KES 10,000</p>
+            <p className="text-xs text-emerald-50/65">launch installation price for the first 10 clients</p>
+          </div>
+          <p className="mt-2 text-sm text-emerald-50/75">DukaOS installation, POS and register configuration, business setup, product import assistance, printer/scanner configuration, staff onboarding, and basic training. You provide the hardware. We make it work with DukaOS.</p>
+        </div>
+        <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs text-emerald-50/65">
+          <span>Optional: barcode scanner</span>
+          <span>Optional: cash drawer</span>
+          <span>Optional: UPS</span>
+          <span>Optional: customer display</span>
+          <span>Optional: additional monitor</span>
         </div>
         <div className="mt-6 flex flex-col justify-between gap-4 border-t border-white/15 pt-5 sm:flex-row sm:items-center">
           <p className="text-sm text-emerald-50/75">Software subscription required from <strong className="text-white">KES 1,200/month</strong>.</p>
