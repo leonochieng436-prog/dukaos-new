@@ -75,15 +75,24 @@ export async function requireAuthContext(): Promise<AuthContext> {
     where: { userId: session.userId, branch: { organizationId } },
     select: { branchId: true },
   });
+  const assignedRegisterBranches = await rawPrisma.registerAssignment.findMany({
+    where: { userId: session.userId, organizationId },
+    select: { register: { select: { branchId: true } } },
+  });
 
   // Owner/Administrator/Manager roles are unrestricted by branch unless
   // explicitly scoped via UserBranch rows; other roles are restricted to
   // whatever branches they've been assigned (empty assignment for a
-  // restricted role means "no branches" rather than "all branches").
+  // restricted role means "no branches" rather than "all branches"). A
+  // register assignment also grants access to that register's branch.
   const unrestrictedRoles = ["owner", "administrator", "manager"];
+  const scopedBranchIds = new Set([
+    ...userBranches.map((branch) => branch.branchId),
+    ...assignedRegisterBranches.map((assignment) => assignment.register.branchId),
+  ]);
   const branchIds =
-    userBranches.length > 0
-      ? userBranches.map((b) => b.branchId)
+    scopedBranchIds.size > 0
+      ? [...scopedBranchIds]
       : unrestrictedRoles.includes(membership.role.slug)
         ? null
         : [];

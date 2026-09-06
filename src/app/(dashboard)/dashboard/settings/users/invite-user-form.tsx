@@ -16,13 +16,16 @@ import {
 
 type RoleOption = { id: string; name: string };
 type BranchOption = { id: string; name: string };
+type RegisterOption = { id: string; name: string; branchName: string };
 
 export function InviteUserForm({
   roles,
   branches,
+  registers = [],
 }: {
   roles: RoleOption[];
   branches: BranchOption[];
+  registers: RegisterOption[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -33,11 +36,13 @@ export function InviteUserForm({
     setError(null);
     setTempPassword(null);
     const branchIds = formData.getAll("branchIds").map(String);
+    const registerIds = formData.getAll("registerIds").map(String);
     const payload = {
       name: String(formData.get("name") || ""),
       email: String(formData.get("email") || ""),
       roleId: String(formData.get("roleId") || ""),
       branchIds,
+      registerIds,
     };
 
     startTransition(async () => {
@@ -113,6 +118,18 @@ export function InviteUserForm({
                 <label key={b.id} className="flex items-center gap-1.5 text-[13px]">
                   <input type="checkbox" name="branchIds" value={b.id} />
                   {b.name}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Register access</Label>
+            <div className="flex flex-wrap gap-3">
+              {registers.map((register) => (
+                <label key={register.id} className="flex items-center gap-1.5 text-[13px]">
+                  <input type="checkbox" name="registerIds" value={register.id} />
+                  {register.name} ({register.branchName})
                 </label>
               ))}
             </div>

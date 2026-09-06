@@ -10,7 +10,6 @@ import { saleSchema, cashSessionSchema, closeCashSessionSchema } from "@/lib/val
 import { z } from "zod";
 import type { ActionResult } from "./auth";
 import { getRegisterSummary } from "@/server/services/register-summary";
-import { matchesRegisterCredential } from "@/lib/register-credentials";
 import { validateSalePayments } from "@/lib/sales";
 import { assertSubscriptionActive } from "@/server/services/billing";
 
@@ -21,18 +20,13 @@ export async function openCashSession(raw: unknown): Promise<ActionResult<undefi
     const input = parsed.data; assertBranchAccess(ctx, input.branchId);
     const register = await ctx.db.register.findFirst({ where: { id: input.registerId, branchId: input.branchId, branch: { organizationId: ctx.organizationId }, isActive: true }, include: { branch: true, credentials: true } });
     if (!register) return { ok: false, error: "Register not found for this branch." };
-    if (!ctx.isOwner && await ctx.db.registerAssignment.count({ where: { userId: ctx.userId } }) > 0 && !(await ctx.db.registerAssignment.findFirst({ where: { userId: ctx.userId, registerId: register.id } }))) return { ok: false, error: "You are not assigned to this register." };
-    const requiredCredential = register.credentials?.isActive ? register.credentials : null;
-    if (requiredCredential && !ctx.isOwner) {
-      if (!input.terminalCode || !input.terminalPassword) return { ok: false, error: "This register requires its terminal code and password." };
-      const matches = await matchesRegisterCredential(input.terminalCode, input.terminalPassword, requiredCredential.terminalCode, requiredCredential.passwordHash);
-      if (!matches) return { ok: false, error: "Invalid register terminal credentials." };
-    }
+    if (!ctx.isOwner && ctx.branchIds !== null && !(await ctx.db.registerAssignment.findFirst({ where: { userId: ctx.userId, registerId: register.id } }))) return { ok: false, error: "You are not assigned to this register." };
     const existingUserSession = await ctx.db.cashSession.findFirst({ where: { userId: ctx.userId, status: "OPEN" } });
     if (existingUserSession && existingUserSession.registerId !== register.id) return { ok: false, error: "Close your current register session before opening another one." };
     const open = await ctx.db.cashSession.findFirst({ where: { registerId: register.id, status: "OPEN" } });
-    if (open) return { ok: false, error: `Register ${register.name} is already open in ${register.branch.name}.` };
-    await ctx.db.cashSession.create({ data: { organizationId: ctx.organizationId, branchId: input.branchId, registerId: register.id, userId: ctx.userId, openingBalance: input.openingBalance } });
+    if (open) return { ok: true, data: undefined };
+    const session = await ctx.db.cashSession.create({ data: { organizationId: ctx.organizationId, branchId: input.branchId, registerId: register.id, userId: ctx.userId, openingBalance: input.openingBalance } });
+    await recordAudit({ organizationId: ctx.organizationId, userId: ctx.userId, action: "CASH_SESSION_OPENED", entityType: "CashSession", entityId: session.id, metadata: { branchId: register.branchId, branchName: register.branch.name, registerId: register.id, registerName: register.name } });
     revalidatePath("/dashboard/pos"); return { ok: true, data: undefined };
   } catch (e) { if (e instanceof AuthError) return { ok: false, error: e.message }; throw e; }
 }
@@ -73,7 +67,6 @@ export async function createSale(raw: unknown): Promise<ActionResult<{ id: strin
       }
       const session = await tx.cashSession.findFirst({ where: { registerId: register.id, branchId: branch.id, organizationId: ctx.organizationId, status: "OPEN" } });
       if (!session) throw new Error("Open the register before completing a sale.");
-      if (session.userId !== ctx.userId) throw new Error("This register session is assigned to another cashier.");
       const created = await tx.sale.create({ data: { organizationId: ctx.organizationId, branchId: branch.id, registerId: register.id, cashierId: ctx.userId, cashSessionId: session?.id, receiptNumber: `R-${Date.now()}`, subtotal: subtotal.toFixed(2), total: subtotal.toFixed(2), cogsTotal: cogs.toFixed(2), amountPaid: cashPaid.toFixed(2), changeGiven: Decimal.max(cashPaid.minus(subtotal), 0).toFixed(2), isCreditSale: payments.some((payment) => payment.method === "CREDIT"), customerId: input.customerId || null, items: { create: saleItems }, payments: { create: payments.map((payment) => ({ organizationId: ctx.organizationId, method: payment.method, amount: payment.amount })) } } });
       if (session && cashPaid.gt(0)) await tx.cashMovement.create({ data: { cashSessionId: session.id, type: "SALE", amount: cashPaid.toFixed(2), referenceType: "Sale", referenceId: created.id } });
       return created;

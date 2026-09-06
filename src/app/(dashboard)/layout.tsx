@@ -51,9 +51,7 @@ export default async function DashboardLayout({
   }
 
   const inventoryWhere = ctx.branchIds ? { warehouse: { branchId: { in: ctx.branchIds } } } : undefined;
-  const warningWindowStart = new Date();
-  warningWindowStart.setDate(warningWindowStart.getDate() - 7);
-  const [organization, user, branchCount, stockVariants, heldSalesCount, creditSales, failedPaymentsCount, overdueInvoicesCount] = await Promise.all([
+  const [organization, user, branchCount, stockVariants] = await Promise.all([
     rawPrisma.organization.findUniqueOrThrow({
       where: { id: ctx.organizationId },
     }),
@@ -69,13 +67,6 @@ export default async function DashboardLayout({
         inventoryItems: { where: inventoryWhere, select: { quantity: true } },
       },
     }),
-    ctx.db.sale.count({ where: { status: "HELD" } }),
-    ctx.db.sale.findMany({
-      where: { isCreditSale: true, status: "COMPLETED" },
-      select: { total: true, amountPaid: true },
-    }),
-    ctx.db.payment.count({ where: { status: "FAILED", createdAt: { gte: warningWindowStart } } }),
-    ctx.db.invoice.count({ where: { status: "OVERDUE" } }),
   ]);
   const lowStockCount = stockVariants.filter((variant) => {
     const quantity = variant.inventoryItems.reduce((sum, item) => sum.plus(item.quantity.toString()), new Decimal(0));
@@ -83,9 +74,6 @@ export default async function DashboardLayout({
   }).length;
   const outOfStockCount = stockVariants.filter((variant) =>
     variant.inventoryItems.reduce((sum, item) => sum.plus(item.quantity.toString()), new Decimal(0)).isZero()
-  ).length;
-  const outstandingCreditCount = creditSales.filter((sale) =>
-    new Decimal(sale.total.toString()).minus(sale.amountPaid.toString()).gt(0)
   ).length;
   const notifications: DashboardNotification[] = [];
   if (outOfStockCount > 0 || lowStockCount > 0) {
@@ -95,33 +83,6 @@ export default async function DashboardLayout({
       detail: `${outOfStockCount ? `${outOfStockCount} out of stock` : ""}${outOfStockCount && lowStockCount ? " · " : ""}${lowStockCount ? `${lowStockCount} low stock` : ""}. Review inventory before sales are missed.`,
       href: "/dashboard/inventory#alerts",
       tone: outOfStockCount > 0 ? "danger" : "warning",
-    });
-  }
-  if (heldSalesCount > 0) {
-    notifications.push({
-      id: "held-sales",
-      title: `${heldSalesCount} sale${heldSalesCount === 1 ? "" : "s"} need${heldSalesCount === 1 ? "s" : ""} attention`,
-      detail: "Held sales cannot be completed until their stock or payment issue is resolved.",
-      href: "/dashboard/pos",
-      tone: "danger",
-    });
-  }
-  if (outstandingCreditCount > 0) {
-    notifications.push({
-      id: "credit-sales",
-      title: `${outstandingCreditCount} outstanding credit sale${outstandingCreditCount === 1 ? "" : "s"}`,
-      detail: "Follow up on customer balances that still need payment.",
-      href: "/dashboard/credit",
-      tone: "info",
-    });
-  }
-  if (failedPaymentsCount > 0 || overdueInvoicesCount > 0) {
-    notifications.push({
-      id: "system-warnings",
-      title: "System warnings",
-      detail: `${failedPaymentsCount ? `${failedPaymentsCount} failed payment${failedPaymentsCount === 1 ? "" : "s"}` : ""}${failedPaymentsCount && overdueInvoicesCount ? " · " : ""}${overdueInvoicesCount ? `${overdueInvoicesCount} overdue invoice${overdueInvoicesCount === 1 ? "" : "s"}` : ""}.`,
-      href: failedPaymentsCount ? "/dashboard/sales" : "/dashboard/invoices",
-      tone: "warning",
     });
   }
   const canOpenSettings = [
