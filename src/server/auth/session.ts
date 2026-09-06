@@ -4,7 +4,6 @@ import { randomBytes, createHash } from "crypto";
 import { rawPrisma } from "@/server/db/client";
 
 const SESSION_COOKIE = "pos_session";
-const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
 const SESSION_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
@@ -14,6 +13,40 @@ const SESSION_COOKIE_OPTIONS = {
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
+}
+
+function getTimeZoneOffsetMs(date: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const values = Object.fromEntries(
+    parts.filter((part) => part.type !== "literal").map((part) => [part.type, Number(part.value)])
+  );
+  return Date.UTC(values.year, values.month - 1, values.day, values.hour, values.minute, values.second) - date.getTime();
+}
+
+function getNextMidnight(timeZone: string, referenceDate = new Date()): Date {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(referenceDate);
+  const values = Object.fromEntries(
+    parts.filter((part) => part.type !== "literal").map((part) => [part.type, Number(part.value)])
+  );
+  const nextDayUtc = Date.UTC(values.year, values.month - 1, values.day + 1);
+  const firstEstimate = new Date(nextDayUtc);
+  const firstOffset = getTimeZoneOffsetMs(firstEstimate, timeZone);
+  const adjusted = new Date(nextDayUtc - firstOffset);
+  return new Date(nextDayUtc - getTimeZoneOffsetMs(adjusted, timeZone));
 }
 
 /**
@@ -31,6 +64,21 @@ export async function createSession(params: {
 }) {
   const token = randomBytes(32).toString("hex");
   const tokenHash = hashToken(token);
+  let expiresAt = getNextMidnight("UTC");
+
+  if (params.organizationId) {
+    const organization = await rawPrisma.organization.findUnique({
+      where: { id: params.organizationId },
+      select: { timezone: true },
+    });
+    if (organization?.timezone) {
+      try {
+        expiresAt = getNextMidnight(organization.timezone);
+      } catch {
+        // Keep the UTC cutoff if an organization has an invalid timezone.
+      }
+    }
+  }
 
   await rawPrisma.session.create({
     data: {
@@ -39,14 +87,14 @@ export async function createSession(params: {
       tokenHash,
       ipAddress: params.ipAddress ?? null,
       userAgent: params.userAgent ?? null,
-      expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+      expiresAt,
     },
   });
 
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
     ...SESSION_COOKIE_OPTIONS,
-    expires: new Date(Date.now() + SESSION_TTL_MS),
+    expires: expiresAt,
   });
 
   return token;
@@ -63,9 +111,18 @@ export async function getCurrentSession() {
     include: { user: true },
   });
 
-  if (!session || session.expiresAt < new Date() || !session.user.isActive) {
+  if (!session || !session.user.isActive) {
     return null;
   }
+
+  const organization = session.organizationId
+    ? await rawPrisma.organization.findUnique({
+        where: { id: session.organizationId },
+        select: { timezone: true },
+      })
+    : null;
+  const dailyExpiry = getNextMidnight(organization?.timezone ?? "UTC", session.createdAt);
+  if (session.expiresAt < new Date() || dailyExpiry < new Date()) return null;
 
   return session;
 }
