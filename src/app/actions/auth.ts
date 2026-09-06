@@ -14,6 +14,7 @@ import {
 } from "@/server/services/organization";
 import { uniqueOrgSlug } from "@/lib/slug";
 import { randomBytes, createHash } from "crypto";
+import { planLimits, type Plan } from "@/lib/billing";
 import {
   registerOrganizationSchema,
   loginSchema,
@@ -24,12 +25,6 @@ import {
 export type ActionResult<T = undefined> =
   | { ok: true; data: T; warnings?: string[] }
   | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
-
-const PLAN_LIMITS = {
-  starter: { branchLimit: 1, registerLimit: 2, userLimit: 5 },
-  growth: { branchLimit: 5, registerLimit: 15, userLimit: 25 },
-  enterprise: { branchLimit: 999, registerLimit: 999, userLimit: 999 },
-} as const;
 
 async function clientIp(): Promise<string | null> {
   const h = await headers();
@@ -113,9 +108,9 @@ export async function registerOrganization(
         organizationId: org.id,
         plan: input.plan,
         status: "pending_payment",
-        branchLimit: PLAN_LIMITS[input.plan].branchLimit,
-        registerLimit: PLAN_LIMITS[input.plan].registerLimit,
-        userLimit: PLAN_LIMITS[input.plan].userLimit,
+        branchLimit: planLimits(input.plan as Plan).branchLimit,
+        registerLimit: planLimits(input.plan as Plan).registerLimit,
+        userLimit: planLimits(input.plan as Plan).userLimit,
       },
     });
 

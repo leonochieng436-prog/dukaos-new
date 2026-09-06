@@ -19,7 +19,7 @@ export async function createRegister(raw: unknown): Promise<ActionResult<{ id: s
     const ctx = await requireAuthContext();
     assertPermission(ctx, "BRANCHES_MANAGE");
     assertOwner(ctx);
-    await assertBranchLimitNotExceeded(ctx);
+    await assertRegisterLimitNotExceeded(ctx);
     const parsed = registerSchema.safeParse(raw);
     if (!parsed.success) return { ok: false, error: "Enter a register name and branch." };
     const branch = await ctx.db.branch.findFirst({ where: { id: parsed.data.branchId, isActive: true } });
@@ -89,7 +89,7 @@ export async function createBranch(raw: unknown): Promise<ActionResult<{ id: str
     const ctx = await requireAuthContext();
     assertPermission(ctx, "BRANCHES_MANAGE");
     assertOwner(ctx);
-    await assertRegisterLimitNotExceeded(ctx);
+    await assertBranchLimitNotExceeded(ctx);
 
     const parsed = createBranchSchema.safeParse(raw);
     if (!parsed.success) {

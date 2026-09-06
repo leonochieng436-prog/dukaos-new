@@ -11,7 +11,7 @@ import { z } from "zod";
 import type { ActionResult } from "./auth";
 import { getRegisterSummary } from "@/server/services/register-summary";
 import { validateSalePayments } from "@/lib/sales";
-import { assertSubscriptionActive } from "@/server/services/billing";
+import { assertFeature, assertSubscriptionActive } from "@/server/services/billing";
 
 export async function openCashSession(raw: unknown): Promise<ActionResult<undefined>> {
   try {
@@ -38,6 +38,7 @@ export async function createSale(raw: unknown): Promise<ActionResult<{ id: strin
     const parsed = saleSchema.safeParse(raw); if (!parsed.success) return { ok: false, error: "Add products and choose a payment method.", fieldErrors: parsed.error.flatten().fieldErrors };
     const input = parsed.data; assertBranchAccess(ctx, input.branchId);
     const payments = input.payments?.length ? input.payments : [{ method: input.paymentMethod, amount: input.amountPaid }];
+    if (payments.some((payment) => payment.method === "CREDIT")) await assertFeature(ctx, "creditSales");
     const cashPaid = payments.filter((payment) => payment.method !== "CREDIT").reduce((sum, payment) => sum.plus(payment.amount), new Decimal(0));
     if (payments.some((payment) => payment.method === "CREDIT") && !input.customerId) return { ok: false, error: "Select a customer for credit sales." };
     const branch = await ctx.db.branch.findFirst({ where: { id: input.branchId, isActive: true } });

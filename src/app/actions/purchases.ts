@@ -6,12 +6,14 @@ import Decimal from "decimal.js";
 import { requireAuthContext, assertPermission, assertBranchAccess, AuthError } from "@/server/auth/context";
 import { recordAudit } from "@/server/services/audit";
 import { increaseStock } from "@/server/services/inventory";
+import { assertFeature } from "@/server/services/billing";
 import { supplierSchema, purchaseOrderSchema, receivePurchaseSchema, supplierInvoiceSchema, supplierPaymentSchema, directPurchaseSchema, purchasePaymentSchema } from "@/lib/validation/purchases";
 import type { ActionResult } from "./auth";
 
 export async function createSupplier(raw: unknown): Promise<ActionResult<{ id: string }>> {
   try {
     const ctx = await requireAuthContext();
+    await assertFeature(ctx, "purchases");
     assertPermission(ctx, "SUPPLIERS_MANAGE");
     const parsed = supplierSchema.safeParse(raw);
     if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid supplier." };
@@ -41,6 +43,7 @@ export async function createSupplier(raw: unknown): Promise<ActionResult<{ id: s
 export async function createPurchaseOrder(raw: unknown): Promise<ActionResult<{ id: string }>> {
   try {
     const ctx = await requireAuthContext();
+    await assertFeature(ctx, "purchases");
     assertPermission(ctx, "PURCHASE_CREATE");
     const parsed = purchaseOrderSchema.safeParse(raw);
     if (!parsed.success) return { ok: false, error: "Please fix the purchase order.", fieldErrors: parsed.error.flatten().fieldErrors };
@@ -82,6 +85,7 @@ export async function createPurchaseOrder(raw: unknown): Promise<ActionResult<{ 
 export async function createDirectPurchase(raw: unknown): Promise<ActionResult<{ id: string }>> {
   try {
     const ctx = await requireAuthContext();
+    await assertFeature(ctx, "purchases");
     assertPermission(ctx, "PURCHASE_CREATE");
     const parsed = directPurchaseSchema.safeParse(raw);
     if (!parsed.success) return { ok: false, error: "Please fix the purchase details.", fieldErrors: parsed.error.flatten().fieldErrors };
@@ -139,6 +143,7 @@ export async function createDirectPurchase(raw: unknown): Promise<ActionResult<{
 export async function recordPurchasePayment(raw: unknown): Promise<ActionResult<undefined>> {
   try {
     const ctx = await requireAuthContext();
+    await assertFeature(ctx, "purchases");
     assertPermission(ctx, "PURCHASE_APPROVE");
     const parsed = purchasePaymentSchema.safeParse(raw);
     if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid payment." };
@@ -165,6 +170,7 @@ export async function recordPurchasePayment(raw: unknown): Promise<ActionResult<
 export async function receivePurchase(raw: unknown): Promise<ActionResult<undefined>> {
   try {
     const ctx = await requireAuthContext();
+    await assertFeature(ctx, "purchases");
     assertPermission(ctx, "PURCHASE_RECEIVE");
     const parsed = receivePurchaseSchema.safeParse(raw);
     if (!parsed.success) return { ok: false, error: "Please fix the receipt.", fieldErrors: parsed.error.flatten().fieldErrors };

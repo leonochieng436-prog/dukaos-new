@@ -2,14 +2,30 @@ import Decimal from "decimal.js";
 
 export const UNLIMITED_LIMIT = 999;
 
+const SHARED_FEATURES = {
+  pos: true,
+  inventory: true,
+  customers: true,
+  reports: true,
+  multiBranch: false,
+  purchases: false,
+  stockTransfers: false,
+  creditSales: false,
+  advancedReports: false,
+  analytics: false,
+  auditLogs: false,
+  apiAccess: false,
+} as const;
+
 export const PLAN_CATALOG = {
-  trial: { branchLimit: 1, registerLimit: 1, userLimit: 5, monthlyPrice: 0, stripePriceEnv: null },
-  starter: { branchLimit: 1, registerLimit: 2, userLimit: 5, monthlyPrice: 1500, stripePriceEnv: "STRIPE_STARTER_PRICE_ID" },
-  growth: { branchLimit: 5, registerLimit: 15, userLimit: 25, monthlyPrice: 3500, stripePriceEnv: "STRIPE_GROWTH_PRICE_ID" },
-  enterprise: { branchLimit: UNLIMITED_LIMIT, registerLimit: UNLIMITED_LIMIT, userLimit: UNLIMITED_LIMIT, monthlyPrice: 7500, stripePriceEnv: "STRIPE_ENTERPRISE_PRICE_ID" },
+  trial: { branchLimit: 1, registerLimit: 1, userLimit: 2, monthlyPrice: 0, stripePriceEnv: null, features: SHARED_FEATURES },
+  starter: { branchLimit: 1, registerLimit: 1, userLimit: 2, monthlyPrice: 1200, stripePriceEnv: "STRIPE_STARTER_PRICE_ID", features: SHARED_FEATURES },
+  growth: { branchLimit: 3, registerLimit: 3, userLimit: 8, monthlyPrice: 2500, stripePriceEnv: "STRIPE_GROWTH_PRICE_ID", features: { ...SHARED_FEATURES, multiBranch: true, purchases: true, stockTransfers: true, creditSales: true, advancedReports: true, analytics: true } },
+  enterprise: { branchLimit: 10, registerLimit: 15, userLimit: 30, monthlyPrice: 5000, stripePriceEnv: "STRIPE_ENTERPRISE_PRICE_ID", features: { ...SHARED_FEATURES, multiBranch: true, purchases: true, stockTransfers: true, creditSales: true, advancedReports: true, analytics: true, auditLogs: true, apiAccess: true } },
 } as const;
 
 export type Plan = keyof typeof PLAN_CATALOG;
+export type Feature = keyof typeof SHARED_FEATURES;
 export type StoredSubscriptionStatus = "trialing" | "active" | "past_due" | "canceled" | string;
 export type EffectiveSubscriptionStatus = StoredSubscriptionStatus | "trial_expired";
 
@@ -45,6 +61,10 @@ export function getStripePriceId(plan: Plan): string | null {
 
 export function planLimits(plan: Plan) {
   return PLAN_CATALOG[plan];
+}
+
+export function annualPrice(plan: Plan): number {
+  return Math.round(PLAN_CATALOG[plan].monthlyPrice * 12 * 0.9);
 }
 
 export function decimalWithinLimit(current: Decimal.Value, limit: number): boolean {

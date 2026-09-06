@@ -7,6 +7,7 @@ import { NotificationBell, type DashboardNotification } from "@/components/notif
 import { DashboardNav, type DashboardNavItem } from "./dashboard/dashboard-nav";
 import { MobileDashboardNav } from "./dashboard/mobile-dashboard-nav";
 import { SupportAssistant } from "@/components/support-assistant";
+import { PLAN_CATALOG, type Plan } from "@/lib/billing";
 import {
   LogOut,
 } from "lucide-react";
@@ -25,6 +26,7 @@ const NAV: DashboardNavItem[] = [
     { href: "/dashboard/inventory#edit-inventory", label: "Adjust stock" },
   ] },
   { href: "/dashboard/purchases", label: "Purchases", icon: "purchases" },
+  { href: "/dashboard/transfers", label: "Transfers", icon: "transfers" },
   { href: "/dashboard/credit", label: "Credit", icon: "customers" },
   { href: "/dashboard/customers", label: "Customers", icon: "customers" },
   { href: "/dashboard/invoices", label: "Invoices", icon: "invoices" },
@@ -51,7 +53,7 @@ export default async function DashboardLayout({
   }
 
   const inventoryWhere = ctx.branchIds ? { warehouse: { branchId: { in: ctx.branchIds } } } : undefined;
-  const [organization, user, branchCount, stockVariants] = await Promise.all([
+  const [organization, user, branchCount, stockVariants, subscription] = await Promise.all([
     rawPrisma.organization.findUniqueOrThrow({
       where: { id: ctx.organizationId },
     }),
@@ -67,7 +69,13 @@ export default async function DashboardLayout({
         inventoryItems: { where: inventoryWhere, select: { quantity: true } },
       },
     }),
+    ctx.db.subscription.findUnique({ where: { organizationId: ctx.organizationId } }),
   ]);
+  const plan = PLAN_CATALOG[(subscription?.plan as Plan) ?? "trial"] ?? PLAN_CATALOG.trial;
+  const workspaceNav = NAV.slice(0, 10).map((item) => ({
+    ...item,
+    locked: item.href === "/dashboard/purchases" ? !plan.features.purchases : item.href === "/dashboard/transfers" ? !plan.features.stockTransfers : item.href === "/dashboard/credit" ? !plan.features.creditSales : false,
+  }));
   const lowStockCount = stockVariants.filter((variant) => {
     const quantity = variant.inventoryItems.reduce((sum, item) => sum.plus(item.quantity.toString()), new Decimal(0));
     return quantity.gt(0) && (quantity.lessThan(5) || quantity.lessThanOrEqualTo(variant.reorderLevel.toString()));
@@ -115,7 +123,7 @@ export default async function DashboardLayout({
         </div>
         <div className="flex-1 px-3 py-5">
           <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Workspace</p>
-          <DashboardNav items={NAV.slice(0, 10)} />
+          <DashboardNav items={workspaceNav} />
           <p className="mb-2 mt-7 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Administration</p>
           <DashboardNav items={adminNav} />
         </div>
@@ -153,7 +161,7 @@ export default async function DashboardLayout({
             <NotificationBell notifications={notifications} />
             <span className="hidden text-right sm:block"><span className="block text-sm font-semibold">{user.name}</span><span className="block text-[11px] text-muted-foreground">Owner</span></span>
             <span className="grid h-9 w-9 place-items-center rounded-full bg-primary-tint text-sm font-bold text-primary">{user.name.slice(0, 1).toUpperCase()}</span>
-            <MobileDashboardNav items={NAV.slice(0, 10)} />
+            <MobileDashboardNav items={workspaceNav} />
           </div>
         </header>
         <main className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">{children}</main>

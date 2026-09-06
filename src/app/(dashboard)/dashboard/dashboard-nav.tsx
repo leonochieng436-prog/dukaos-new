@@ -8,6 +8,7 @@ import {
   DollarSign,
   FileText,
   LayoutDashboard,
+  LockKeyhole,
   Package,
   Settings,
   ShoppingCart,
@@ -22,6 +23,7 @@ export type DashboardNavItem = {
   label: string;
   icon: keyof typeof ICONS;
   children?: { href: string; label: string }[];
+  locked?: boolean;
 };
 
 const ICONS = {
@@ -37,6 +39,7 @@ const ICONS = {
   billing: Wallet,
   invoices: FileText,
   settings: Settings,
+  transfers: Truck,
 } as const;
 
 export function DashboardNav({ items, onNavigate }: { items: DashboardNavItem[]; onNavigate?: () => void }) {
@@ -45,14 +48,15 @@ export function DashboardNav({ items, onNavigate }: { items: DashboardNavItem[];
   return (
     <nav className="space-y-1">
       {items.map((item) => {
-        const active = item.href === "/dashboard"
+        const active = !item.locked && (item.href === "/dashboard"
           ? pathname === item.href
-          : pathname.startsWith(item.href);
+          : pathname.startsWith(item.href));
         const Icon = ICONS[item.icon];
+        const destination = item.locked ? "/dashboard/billing" : item.href;
         return (
           <div key={item.href}>
             <Link
-              href={item.href}
+              href={destination}
               onClick={onNavigate}
               className={cn(
                 "group flex items-center gap-3 rounded-[var(--radius-sm)] px-3 py-2.5 text-sm transition-colors",
@@ -62,7 +66,8 @@ export function DashboardNav({ items, onNavigate }: { items: DashboardNavItem[];
               )}
             >
               <Icon size={17} strokeWidth={active ? 2.4 : 2} className={active ? "" : "text-muted-foreground group-hover:text-primary"} />
-              <span>{item.label}</span>
+              <span className="flex-1">{item.label}</span>
+              {item.locked && <LockKeyhole size={14} className="text-muted-foreground" aria-label="Available on a higher plan" />}
             </Link>
             {active && item.children && <div className="ml-8 mt-1 space-y-0.5 border-l border-border pl-3">
               {item.children.map((child) => <Link key={child.href} href={child.href} onClick={onNavigate} className="block rounded px-2 py-1.5 text-[12px] text-muted-foreground hover:bg-surface-muted hover:text-foreground">{child.label}</Link>)}

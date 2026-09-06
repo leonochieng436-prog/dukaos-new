@@ -8,6 +8,7 @@ import { increaseStock } from "@/server/services/inventory";
 import { recordAudit } from "@/server/services/audit";
 import { customerSchema, customerPaymentSchema, returnSchema } from "@/lib/validation/customers";
 import { allocatePaymentToSales } from "@/lib/credit";
+import { assertFeature } from "@/server/services/billing";
 import type { ActionResult } from "./auth";
 
 const SALE_PAYMENT_METHODS: Record<string, string> = {
@@ -107,7 +108,7 @@ export async function createCustomer(raw: unknown): Promise<ActionResult<{ id: s
 
 export async function clearCustomerBalance(raw: unknown): Promise<ActionResult<undefined>> {
   try {
-    const ctx = await requireAuthContext(); assertPermission(ctx, "CUSTOMER_CREDIT_MANAGE");
+    const ctx = await requireAuthContext(); await assertFeature(ctx, "creditSales"); assertPermission(ctx, "CUSTOMER_CREDIT_MANAGE");
     const data = raw instanceof FormData ? Object.fromEntries(raw.entries()) : raw;
     const customerId = typeof data === "object" && data && "customerId" in data ? String(data.customerId ?? "") : "";
     const method = typeof data === "object" && data && "method" in data ? String(data.method ?? "cash") : "cash";
@@ -281,7 +282,7 @@ export async function clearCustomerBalance(raw: unknown): Promise<ActionResult<u
 
 export async function recordCustomerPayment(raw: unknown): Promise<ActionResult<undefined>> {
   try {
-    const ctx = await requireAuthContext(); assertPermission(ctx, "CUSTOMER_CREDIT_MANAGE");
+    const ctx = await requireAuthContext(); await assertFeature(ctx, "creditSales"); assertPermission(ctx, "CUSTOMER_CREDIT_MANAGE");
     const parsed = customerPaymentSchema.safeParse(raw); if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid payment." };
     const input = parsed.data; const customer = await ctx.db.customer.findFirst({ where: { id: input.customerId } });
     if (!customer) return { ok: false, error: "Customer not found." };

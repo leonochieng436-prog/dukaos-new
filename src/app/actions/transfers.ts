@@ -6,12 +6,13 @@ import type { Prisma } from "@prisma/client";
 import { requireAuthContext, assertPermission, assertBranchAccess, AuthError } from "@/server/auth/context";
 import { decreaseStock, increaseStock } from "@/server/services/inventory";
 import { recordAudit } from "@/server/services/audit";
+import { assertFeature } from "@/server/services/billing";
 import { transferSchema } from "@/lib/validation/transfers";
 import type { ActionResult } from "./auth";
 
 export async function createStockTransfer(raw: unknown): Promise<ActionResult<undefined>> {
   try {
-    const ctx = await requireAuthContext(); assertPermission(ctx, "INVENTORY_TRANSFER");
+    const ctx = await requireAuthContext(); await assertFeature(ctx, "stockTransfers"); assertPermission(ctx, "INVENTORY_TRANSFER");
     const parsed = transferSchema.safeParse(raw); if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid transfer." };
     const input = parsed.data; assertBranchAccess(ctx, input.fromBranchId); assertBranchAccess(ctx, input.toBranchId);
     const [source, destination] = await Promise.all([ctx.db.warehouse.findFirst({ where: { id: input.fromWarehouseId, branchId: input.fromBranchId, isActive: true } }), ctx.db.warehouse.findFirst({ where: { id: input.toWarehouseId, branchId: input.toBranchId, isActive: true } })]);
@@ -32,7 +33,7 @@ export async function createStockTransfer(raw: unknown): Promise<ActionResult<un
 /** Receive a shipped transfer as one atomic operation at reconstructed FIFO cost. */
 export async function receiveStockTransfer(transferId: string): Promise<ActionResult<undefined>> {
   try {
-    const ctx = await requireAuthContext(); assertPermission(ctx, "INVENTORY_TRANSFER");
+    const ctx = await requireAuthContext(); await assertFeature(ctx, "stockTransfers"); assertPermission(ctx, "INVENTORY_TRANSFER");
     const transfer = await ctx.db.stockTransfer.findFirst({ where: { id: transferId, status: "IN_TRANSIT" }, include: { items: true } });
     if (!transfer) return { ok: false, error: "In-transit transfer not found." };
     assertBranchAccess(ctx, transfer.toBranchId);
