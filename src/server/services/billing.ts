@@ -24,3 +24,10 @@ export async function assertUserLimitNotExceeded(ctx: AuthContext): Promise<void
   const current = await ctx.db.userOrganization.count({ where: { isActive: true } });
   checkLimit(current, subscription.userLimit, { singular: "user", plural: "users" });
 }
+
+export async function assertRegisterLimitNotExceeded(ctx: AuthContext): Promise<void> {
+  const subscription = await ctx.db.subscription.findUnique({ where: { organizationId: ctx.organizationId } });
+  if (!subscription) throw new AuthError("No subscription is configured for this organization.", 403);
+  const current = await ctx.db.register.count({ where: { isActive: true } });
+  checkLimit(current, subscription.registerLimit, { singular: "register", plural: "registers" });
+}

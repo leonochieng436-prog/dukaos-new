@@ -19,7 +19,7 @@ function Metric({ label, value, tone, icon }: { label: string; value: number; to
 export default async function AdminPage() {
   if (!await getCurrentAdmin()) redirect("/admin/login");
   const subscriptions = await rawPrisma.subscription.findMany({
-    include: { organization: { include: { users: { where: { isOwner: true }, include: { user: true } } } }, approvedByAdmin: true },
+    include: { organization: { include: { branches: { include: { registers: true } }, users: { include: { user: true, role: true } } } }, approvedByAdmin: true },
     orderBy: { createdAt: "desc" },
   });
   const pending = subscriptions.filter((subscription) => subscription.status === "pending_payment");
@@ -34,6 +34,13 @@ export default async function AdminPage() {
     status: subscription.status,
     registeredAt: subscription.createdAt.toISOString(),
     approvedAt: subscription.approvedAt?.toISOString() ?? null,
+    branchCount: subscription.organization.branches.filter((branch) => branch.isActive).length,
+    registerCount: subscription.organization.branches.reduce((total, branch) => total + branch.registers.filter((register) => register.isActive).length, 0),
+    userCount: subscription.organization.users.filter((membership) => membership.isActive).length,
+    branchLimit: subscription.branchLimit,
+    registerLimit: subscription.registerLimit,
+    userLimit: subscription.userLimit,
+    users: subscription.organization.users.filter((membership) => membership.isActive).map((membership) => ({ name: membership.user.name, email: membership.user.email, role: membership.role.name })),
   }));
 
   return <div className="min-h-screen bg-background">

@@ -26,9 +26,9 @@ export type ActionResult<T = undefined> =
   | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
 
 const PLAN_LIMITS = {
-  starter: { branchLimit: 1, userLimit: 5 },
-  growth: { branchLimit: 5, userLimit: 25 },
-  enterprise: { branchLimit: 999, userLimit: 999 },
+  starter: { branchLimit: 1, registerLimit: 2, userLimit: 5 },
+  growth: { branchLimit: 5, registerLimit: 15, userLimit: 25 },
+  enterprise: { branchLimit: 999, registerLimit: 999, userLimit: 999 },
 } as const;
 
 async function clientIp(): Promise<string | null> {
@@ -114,6 +114,7 @@ export async function registerOrganization(
         plan: input.plan,
         status: "pending_payment",
         branchLimit: PLAN_LIMITS[input.plan].branchLimit,
+        registerLimit: PLAN_LIMITS[input.plan].registerLimit,
         userLimit: PLAN_LIMITS[input.plan].userLimit,
       },
     });

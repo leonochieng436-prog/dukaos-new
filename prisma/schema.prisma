@@ -1228,6 +1228,7 @@ model Subscription {
   plan               String
   status             String         @default("trialing")
   branchLimit        Int            @default(1)
+  registerLimit      Int            @default(1)
   userLimit          Int            @default(5)
   trialEndsAt        DateTime?
   currentPeriodEnd   DateTime?

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { requireAuthContext, assertPermission, assertOwner, AuthError } from "@/server/auth/context";
 import { hashPassword } from "@/server/auth/password";
 import { recordAudit } from "@/server/services/audit";
-import { assertBranchLimitNotExceeded } from "@/server/services/billing";
+import { assertBranchLimitNotExceeded, assertRegisterLimitNotExceeded } from "@/server/services/billing";
 import { createBranchSchema } from "@/lib/validation/auth";
 import type { ActionResult } from "./auth";
 
@@ -89,6 +89,7 @@ export async function createBranch(raw: unknown): Promise<ActionResult<{ id: str
     const ctx = await requireAuthContext();
     assertPermission(ctx, "BRANCHES_MANAGE");
     assertOwner(ctx);
+    await assertRegisterLimitNotExceeded(ctx);
 
     const parsed = createBranchSchema.safeParse(raw);
     if (!parsed.success) {

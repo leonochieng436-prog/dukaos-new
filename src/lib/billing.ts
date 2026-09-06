@@ -3,10 +3,10 @@ import Decimal from "decimal.js";
 export const UNLIMITED_LIMIT = 999;
 
 export const PLAN_CATALOG = {
-  trial: { branchLimit: 1, userLimit: 5, monthlyPrice: 0, stripePriceEnv: null },
-  starter: { branchLimit: 1, userLimit: 5, monthlyPrice: 1500, stripePriceEnv: "STRIPE_STARTER_PRICE_ID" },
-  growth: { branchLimit: 5, userLimit: 25, monthlyPrice: 3500, stripePriceEnv: "STRIPE_GROWTH_PRICE_ID" },
-  enterprise: { branchLimit: UNLIMITED_LIMIT, userLimit: UNLIMITED_LIMIT, monthlyPrice: 7500, stripePriceEnv: "STRIPE_ENTERPRISE_PRICE_ID" },
+  trial: { branchLimit: 1, registerLimit: 1, userLimit: 5, monthlyPrice: 0, stripePriceEnv: null },
+  starter: { branchLimit: 1, registerLimit: 2, userLimit: 5, monthlyPrice: 1500, stripePriceEnv: "STRIPE_STARTER_PRICE_ID" },
+  growth: { branchLimit: 5, registerLimit: 15, userLimit: 25, monthlyPrice: 3500, stripePriceEnv: "STRIPE_GROWTH_PRICE_ID" },
+  enterprise: { branchLimit: UNLIMITED_LIMIT, registerLimit: UNLIMITED_LIMIT, userLimit: UNLIMITED_LIMIT, monthlyPrice: 7500, stripePriceEnv: "STRIPE_ENTERPRISE_PRICE_ID" },
 } as const;
 
 export type Plan = keyof typeof PLAN_CATALOG;

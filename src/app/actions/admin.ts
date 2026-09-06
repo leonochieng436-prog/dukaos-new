@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { rawPrisma } from "@/server/db/client";
 import { verifyPassword } from "@/server/auth/password";
 import { createAdminSession, destroyAdminSession, requireAdmin } from "@/server/auth/admin-session";
+import { PLAN_CATALOG, type Plan } from "@/lib/billing";
 
 export async function submitPaymentReference(formData: FormData): Promise<void> {
   const organizationId = String(formData.get("organizationId") || "");
@@ -85,5 +86,38 @@ export async function deleteOrganization(formData: FormData): Promise<void> {
       where: { id: { in: memberships.map((membership) => membership.userId) }, organizations: { none: {} } },
     });
   });
+  revalidatePath("/admin");
+}
+
+export async function updateOrganizationLimits(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const organizationId = String(formData.get("organizationId") || "");
+  const plan = String(formData.get("plan") || "") as Plan;
+  if (!organizationId || !PLAN_CATALOG[plan]) return;
+  const catalog = PLAN_CATALOG[plan];
+  const readLimit = (name: string, fallback: number) => {
+    const value = Number(formData.get(name));
+    return Number.isInteger(value) && value > 0 ? value : fallback;
+  };
+  await rawPrisma.subscription.update({ where: { organizationId }, data: {
+    plan,
+    branchLimit: readLimit("branchLimit", catalog.branchLimit),
+    registerLimit: readLimit("registerLimit", catalog.registerLimit),
+    userLimit: readLimit("userLimit", catalog.userLimit),
+  } });
+  revalidatePath("/admin");
+}
+
+export async function updateOrganizationUserStatus(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const organizationId = String(formData.get("organizationId") || "");
+  const userId = String(formData.get("userId") || "");
+  const isActive = String(formData.get("isActive") || "") === "true";
+  if (!organizationId || !userId) return;
+  await rawPrisma.userOrganization.update({
+    where: { userId_organizationId: { userId, organizationId } },
+    data: { isActive },
+  });
+  revalidatePath(`/admin/organizations/${organizationId}`);
   revalidatePath("/admin");
 }
