@@ -1,13 +1,14 @@
 import { redirect } from "next/navigation";
+import Decimal from "decimal.js";
 import { AuthError, requireAuthContext } from "@/server/auth/context";
 import { rawPrisma } from "@/server/db/client";
 import { logout } from "@/app/actions/auth";
+import { NotificationBell, type DashboardNotification } from "@/components/notification-bell";
 import { DashboardNav, type DashboardNavItem } from "./dashboard/dashboard-nav";
 import { MobileDashboardNav } from "./dashboard/mobile-dashboard-nav";
 import { SupportAssistant } from "@/components/support-assistant";
 import {
   LogOut,
-  Store,
 } from "lucide-react";
 
 const NAV: DashboardNavItem[] = [
@@ -49,13 +50,80 @@ export default async function DashboardLayout({
     throw e;
   }
 
-  const [organization, user, branchCount] = await Promise.all([
+  const inventoryWhere = ctx.branchIds ? { warehouse: { branchId: { in: ctx.branchIds } } } : undefined;
+  const warningWindowStart = new Date();
+  warningWindowStart.setDate(warningWindowStart.getDate() - 7);
+  const [organization, user, branchCount, stockVariants, heldSalesCount, creditSales, failedPaymentsCount, overdueInvoicesCount] = await Promise.all([
     rawPrisma.organization.findUniqueOrThrow({
       where: { id: ctx.organizationId },
     }),
     rawPrisma.user.findUniqueOrThrow({ where: { id: ctx.userId } }),
     ctx.db.branch.count({ where: { isActive: true } }),
+    ctx.db.productVariant.findMany({
+      where: { isActive: true, product: { isActive: true } },
+      select: {
+        id: true,
+        name: true,
+        reorderLevel: true,
+        product: { select: { name: true } },
+        inventoryItems: { where: inventoryWhere, select: { quantity: true } },
+      },
+    }),
+    ctx.db.sale.count({ where: { status: "HELD" } }),
+    ctx.db.sale.findMany({
+      where: { isCreditSale: true, status: "COMPLETED" },
+      select: { total: true, amountPaid: true },
+    }),
+    ctx.db.payment.count({ where: { status: "FAILED", createdAt: { gte: warningWindowStart } } }),
+    ctx.db.invoice.count({ where: { status: "OVERDUE" } }),
   ]);
+  const lowStockCount = stockVariants.filter((variant) => {
+    const quantity = variant.inventoryItems.reduce((sum, item) => sum.plus(item.quantity.toString()), new Decimal(0));
+    return quantity.gt(0) && (quantity.lessThan(5) || quantity.lessThanOrEqualTo(variant.reorderLevel.toString()));
+  }).length;
+  const outOfStockCount = stockVariants.filter((variant) =>
+    variant.inventoryItems.reduce((sum, item) => sum.plus(item.quantity.toString()), new Decimal(0)).isZero()
+  ).length;
+  const outstandingCreditCount = creditSales.filter((sale) =>
+    new Decimal(sale.total.toString()).minus(sale.amountPaid.toString()).gt(0)
+  ).length;
+  const notifications: DashboardNotification[] = [];
+  if (outOfStockCount > 0 || lowStockCount > 0) {
+    notifications.push({
+      id: "inventory-stock",
+      title: `${outOfStockCount + lowStockCount} stock alert${outOfStockCount + lowStockCount === 1 ? "" : "s"}`,
+      detail: `${outOfStockCount ? `${outOfStockCount} out of stock` : ""}${outOfStockCount && lowStockCount ? " · " : ""}${lowStockCount ? `${lowStockCount} low stock` : ""}. Review inventory before sales are missed.`,
+      href: "/dashboard/inventory#alerts",
+      tone: outOfStockCount > 0 ? "danger" : "warning",
+    });
+  }
+  if (heldSalesCount > 0) {
+    notifications.push({
+      id: "held-sales",
+      title: `${heldSalesCount} sale${heldSalesCount === 1 ? "" : "s"} need${heldSalesCount === 1 ? "s" : ""} attention`,
+      detail: "Held sales cannot be completed until their stock or payment issue is resolved.",
+      href: "/dashboard/pos",
+      tone: "danger",
+    });
+  }
+  if (outstandingCreditCount > 0) {
+    notifications.push({
+      id: "credit-sales",
+      title: `${outstandingCreditCount} outstanding credit sale${outstandingCreditCount === 1 ? "" : "s"}`,
+      detail: "Follow up on customer balances that still need payment.",
+      href: "/dashboard/credit",
+      tone: "info",
+    });
+  }
+  if (failedPaymentsCount > 0 || overdueInvoicesCount > 0) {
+    notifications.push({
+      id: "system-warnings",
+      title: "System warnings",
+      detail: `${failedPaymentsCount ? `${failedPaymentsCount} failed payment${failedPaymentsCount === 1 ? "" : "s"}` : ""}${failedPaymentsCount && overdueInvoicesCount ? " · " : ""}${overdueInvoicesCount ? `${overdueInvoicesCount} overdue invoice${overdueInvoicesCount === 1 ? "" : "s"}` : ""}.`,
+      href: failedPaymentsCount ? "/dashboard/sales" : "/dashboard/invoices",
+      tone: "warning",
+    });
+  }
   const canOpenSettings = [
     "SETTINGS_MANAGE",
     "BRANCHES_MANAGE",
@@ -121,6 +189,7 @@ export default async function DashboardLayout({
             <p className="text-sm font-semibold">All Branches <span className="font-normal text-muted-foreground">· {branchCount} active location{branchCount === 1 ? "" : "s"}</span></p>
           </div>
           <div className="flex items-center gap-3">
+            <NotificationBell notifications={notifications} />
             <span className="hidden text-right sm:block"><span className="block text-sm font-semibold">{user.name}</span><span className="block text-[11px] text-muted-foreground">Owner</span></span>
             <span className="grid h-9 w-9 place-items-center rounded-full bg-primary-tint text-sm font-bold text-primary">{user.name.slice(0, 1).toUpperCase()}</span>
             <MobileDashboardNav items={NAV.slice(0, 10)} />
