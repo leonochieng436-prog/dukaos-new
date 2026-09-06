@@ -11,16 +11,19 @@ import { ReceiptActions } from "./receipt-actions";
 
 export default async function PosPage() {
   const ctx = await requireAuthContext();
-  const [branches, warehouses, registers, variants, customers, openSession, recentSales, lastClosedSession] = await Promise.all([
+  const [branches, warehouses, allRegisters, assignedRegisters, variants, customers, openSession, recentSales, lastClosedSession] = await Promise.all([
     ctx.db.branch.findMany({ where: { isActive: true, organizationId: ctx.organizationId }, orderBy: { name: "asc" } }),
     ctx.db.warehouse.findMany({ where: { isActive: true, branch: { organizationId: ctx.organizationId } }, orderBy: { name: "asc" } }),
     ctx.db.register.findMany({ where: { isActive: true, branch: { organizationId: ctx.organizationId } }, orderBy: { name: "asc" }, include: { credentials: true } }),
+    ctx.db.registerAssignment.findMany({ where: { userId: ctx.userId }, select: { registerId: true } }),
     ctx.db.productVariant.findMany({ where: { isActive: true, product: { isActive: true, organizationId: ctx.organizationId } }, include: { product: { include: { category: true } }, inventoryItems: { select: { warehouseId: true, quantity: true } } }, orderBy: { product: { name: "asc" } } }),
     ctx.db.customer.findMany({ where: { organizationId: ctx.organizationId, isWalkIn: false }, orderBy: { name: "asc" } }),
     ctx.db.cashSession.findFirst({ where: { userId: ctx.userId, organizationId: ctx.organizationId, status: "OPEN" }, include: { branch: true, register: true } }),
     ctx.db.sale.findMany({ where: { organizationId: ctx.organizationId, status: "COMPLETED" }, orderBy: { createdAt: "desc" }, take: 10, include: { payments: true } }),
     ctx.db.cashSession.findFirst({ where: { userId: ctx.userId, organizationId: ctx.organizationId, status: "CLOSED" }, orderBy: { closedAt: "desc" }, include: { branch: true, register: true, sales: { where: { status: "COMPLETED" }, orderBy: { createdAt: "asc" }, include: { payments: true } } } }),
   ]);
+  const assignedRegisterIds = new Set(assignedRegisters.map((assignment) => assignment.registerId));
+  const registers = ctx.isOwner || assignedRegisterIds.size === 0 ? allRegisters : allRegisters.filter((register) => assignedRegisterIds.has(register.id));
   const summary = openSession ? await getRegisterSummary(ctx.db, openSession.id) : null;
   const closedTotal = lastClosedSession?.sales.reduce((sum, sale) => sum.plus(sale.total.toString()), new Decimal(0)) ?? new Decimal(0);
   const openCreditSalesCount = recentSales.filter((sale) => sale.payments.some((payment) => payment.method === "CREDIT") && new Decimal(sale.total.toString()).minus(new Decimal(sale.amountPaid.toString())).gt(0)).length;

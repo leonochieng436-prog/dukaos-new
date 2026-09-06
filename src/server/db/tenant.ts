@@ -55,6 +55,7 @@ export const TENANT_MODELS = [
   "supplierInvoice",
   "supplierPayment",
   "userOrganization",
+  "registerAssignment",
   "cashSession",
   "saleReturn",
   "subscription",

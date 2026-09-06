@@ -42,6 +42,9 @@ export async function inviteUser(
     }
     const branches = await ctx.db.branch.findMany({ where: { id: { in: input.branchIds } }, select: { id: true } });
     if (branches.length !== new Set(input.branchIds).size) return { ok: false, error: "One or more selected branches are not available." };
+    const registers = await ctx.db.register.findMany({ where: { id: { in: input.registerIds }, isActive: true, branch: { organizationId: ctx.organizationId } }, select: { id: true, branchId: true } });
+    if (registers.length !== new Set(input.registerIds).size) return { ok: false, error: "One or more selected registers are not available." };
+    if (registers.some((register) => input.branchIds.length > 0 && !input.branchIds.includes(register.branchId))) return { ok: false, error: "Assigned registers must belong to the selected branches." };
 
     const email = input.email.toLowerCase();
     let user = await rawPrisma.user.findUnique({ where: { email } });
@@ -66,6 +69,12 @@ export async function inviteUser(
     if (input.branchIds.length > 0) {
       await rawPrisma.userBranch.createMany({
         data: input.branchIds.map((branchId) => ({ userId: user!.id, branchId })),
+        skipDuplicates: true,
+      });
+    }
+    if (input.registerIds.length > 0) {
+      await rawPrisma.registerAssignment.createMany({
+        data: input.registerIds.map((registerId) => ({ organizationId: ctx.organizationId, userId: user!.id, registerId })),
         skipDuplicates: true,
       });
     }
@@ -117,7 +126,6 @@ export async function updateUser(userId: string, raw: unknown): Promise<ActionRe
   try {
     const ctx = await requireAuthContext();
     assertPermission(ctx, "USERS_MANAGE");
-    assertOwner(ctx);
     if (!userId || userId === ctx.userId) return { ok: false, error: "You cannot edit yourself here." };
     const parsed = inviteUserSchema.safeParse(raw);
     if (!parsed.success) return { ok: false, error: "Please fix the user details." };
@@ -128,6 +136,9 @@ export async function updateUser(userId: string, raw: unknown): Promise<ActionRe
     if (!role) return { ok: false, error: "That role no longer exists." };
     const branches = await ctx.db.branch.findMany({ where: { id: { in: input.branchIds } }, select: { id: true } });
     if (branches.length !== new Set(input.branchIds).size) return { ok: false, error: "One or more selected branches are not available." };
+    const registers = await ctx.db.register.findMany({ where: { id: { in: input.registerIds }, isActive: true, branch: { organizationId: ctx.organizationId } }, select: { id: true, branchId: true } });
+    if (registers.length !== new Set(input.registerIds).size) return { ok: false, error: "One or more selected registers are not available." };
+    if (registers.some((register) => input.branchIds.length > 0 && !input.branchIds.includes(register.branchId))) return { ok: false, error: "Assigned registers must belong to the selected branches." };
     const email = input.email.toLowerCase();
     const existingUser = await rawPrisma.user.findUnique({ where: { email } });
     if (existingUser && existingUser.id !== userId) return { ok: false, error: "That email is already in use." };
@@ -136,6 +147,8 @@ export async function updateUser(userId: string, raw: unknown): Promise<ActionRe
       rawPrisma.userOrganization.update({ where: { id: membership.id }, data: { roleId: input.roleId } }),
       rawPrisma.userBranch.deleteMany({ where: { userId, branch: { organizationId: ctx.organizationId } } }),
       ...(input.branchIds.length > 0 ? [rawPrisma.userBranch.createMany({ data: input.branchIds.map((branchId) => ({ userId, branchId })) })] : []),
+      rawPrisma.registerAssignment.deleteMany({ where: { userId, register: { branch: { organizationId: ctx.organizationId } } } }),
+      ...(input.registerIds.length > 0 ? [rawPrisma.registerAssignment.createMany({ data: input.registerIds.map((registerId) => ({ organizationId: ctx.organizationId, userId, registerId })) })] : []),
     ]);
     await recordAudit({ organizationId: ctx.organizationId, userId: ctx.userId, action: "USER_UPDATED", entityType: "User", entityId: userId, metadata: { email, roleId: input.roleId } });
     revalidatePath("/dashboard/settings/users");

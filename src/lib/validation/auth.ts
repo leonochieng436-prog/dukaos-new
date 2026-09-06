@@ -48,5 +48,6 @@ export const inviteUserSchema = z.object({
   email: z.string().email(),
   roleId: z.string().min(1, "Select a role"),
   branchIds: z.array(z.string()).default([]),
+  registerIds: z.array(z.string()).default([]),
 });
 export type InviteUserInput = z.infer<typeof inviteUserSchema>;

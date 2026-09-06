@@ -9,17 +9,18 @@ export default async function UsersPage() {
   const ctx = await requireAuthContext();
   if (!ctx.permissions.has("USERS_MANAGE")) return null;
 
-  const [memberships, roles, branches] = await Promise.all([
+  const [memberships, roles, branches, registers] = await Promise.all([
     rawPrisma.userOrganization.findMany({
       where: { organizationId: ctx.organizationId },
       include: {
-        user: { include: { branches: true } },
+        user: { include: { branches: true, registerAssignments: { where: { organizationId: ctx.organizationId } } } },
         role: true,
       },
       orderBy: { createdAt: "asc" },
     }),
     ctx.db.role.findMany({ orderBy: { name: "asc" } }),
     ctx.db.branch.findMany({ orderBy: { name: "asc" } }),
+    ctx.db.register.findMany({ where: { isActive: true, branch: { organizationId: ctx.organizationId } }, include: { branch: { select: { name: true } } }, orderBy: [{ branch: { name: "asc" } }, { name: "asc" }] }),
   ]);
 
   return (
@@ -49,7 +50,7 @@ export default async function UsersPage() {
                   </p>
                   <p className="text-[12px] text-muted-foreground">{m.user.email}</p>
                 </div>
-                <div className="flex items-center gap-3"><Badge variant="primary">{m.role.name}</Badge>{!m.isOwner && <UserActions member={{ id: m.user.id, name: m.user.name, email: m.user.email, roleId: m.role.id, branchIds: m.user.branches.map((branch) => branch.branchId) }} roles={roles.map((r) => ({ id: r.id, name: r.name }))} branches={branches.map((b) => ({ id: b.id, name: b.name }))} />}</div>
+                <div className="flex items-center gap-3"><Badge variant="primary">{m.role.name}</Badge>{!m.isOwner && <UserActions member={{ id: m.user.id, name: m.user.name, email: m.user.email, roleId: m.role.id, branchIds: m.user.branches.map((branch) => branch.branchId), registerIds: m.user.registerAssignments.map((assignment) => assignment.registerId) }} roles={roles.map((r) => ({ id: r.id, name: r.name }))} branches={branches.map((b) => ({ id: b.id, name: b.name }))} registers={registers.map((register) => ({ id: register.id, name: register.name, branchName: register.branch.name }))} />}</div>
               </li>
             ))}
           </ul>
@@ -59,6 +60,7 @@ export default async function UsersPage() {
       <InviteUserForm
         roles={roles.map((r) => ({ id: r.id, name: r.name }))}
         branches={branches.map((b) => ({ id: b.id, name: b.name }))}
+        registers={registers.map((register) => ({ id: register.id, name: register.name, branchName: register.branch.name }))}
       />
     </div>
   );

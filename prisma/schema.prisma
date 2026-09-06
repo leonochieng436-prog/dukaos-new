@@ -49,6 +49,7 @@ model Organization {
   purchasePayments     PurchasePayment[]
   receiptSettings      ReceiptSettings?
   roles                Role[]
+  registerAssignments  RegisterAssignment[]
   sales                Sale[]
   stockCounts          StockCount[]
   stockTransfers       StockTransfer[]
@@ -120,6 +121,7 @@ model Register {
   createdAt    DateTime            @default(now())
   cashSessions CashSession[]
   credentials  RegisterCredential?
+  assignments  RegisterAssignment[]
   branch       Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
   sales        Sale[]
 
@@ -161,6 +163,7 @@ model User {
   sessions           Session[]
   branches           UserBranch[]
   organizations      UserOrganization[]
+  registerAssignments RegisterAssignment[]
 
   @@map("users")
 }
@@ -217,6 +220,21 @@ model UserBranch {
 
   @@unique([userId, branchId])
   @@map("user_branches")
+}
+
+model RegisterAssignment {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  registerId     String
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  register       Register     @relation(fields: [registerId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, registerId])
+  @@index([registerId])
+  @@map("register_assignments")
 }
 
 model Session {

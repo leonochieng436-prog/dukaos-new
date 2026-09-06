@@ -21,6 +21,7 @@ export async function openCashSession(raw: unknown): Promise<ActionResult<undefi
     const input = parsed.data; assertBranchAccess(ctx, input.branchId);
     const register = await ctx.db.register.findFirst({ where: { id: input.registerId, branchId: input.branchId, branch: { organizationId: ctx.organizationId }, isActive: true }, include: { branch: true, credentials: true } });
     if (!register) return { ok: false, error: "Register not found for this branch." };
+    if (!ctx.isOwner && await ctx.db.registerAssignment.count({ where: { userId: ctx.userId } }) > 0 && !(await ctx.db.registerAssignment.findFirst({ where: { userId: ctx.userId, registerId: register.id } }))) return { ok: false, error: "You are not assigned to this register." };
     const requiredCredential = register.credentials?.isActive ? register.credentials : null;
     if (requiredCredential && !ctx.isOwner) {
       if (!input.terminalCode || !input.terminalPassword) return { ok: false, error: "This register requires its terminal code and password." };
@@ -49,6 +50,7 @@ export async function createSale(raw: unknown): Promise<ActionResult<{ id: strin
     const register = await ctx.db.register.findFirst({ where: { id: input.registerId, branchId: input.branchId, branch: { organizationId: ctx.organizationId }, isActive: true }, include: { branch: true } });
     const warehouse = await ctx.db.warehouse.findFirst({ where: { id: input.warehouseId, branchId: input.branchId, isActive: true } });
     if (!branch || !register || !warehouse) return { ok: false, error: "Branch, register, or warehouse not found." };
+    if (!ctx.isOwner && await ctx.db.registerAssignment.count({ where: { userId: ctx.userId } }) > 0 && !(await ctx.db.registerAssignment.findFirst({ where: { userId: ctx.userId, registerId: register.id } }))) return { ok: false, error: "You are not assigned to this register." };
     if (input.customerId && !(await ctx.db.customer.findFirst({ where: { id: input.customerId, organizationId: ctx.organizationId } }))) return { ok: false, error: "Customer not found." };
     const variants = await ctx.db.productVariant.findMany({ where: { id: { in: input.items.map((item) => item.variantId) }, isActive: true, product: { isActive: true, organizationId: ctx.organizationId } }, include: { product: true } });
     if (variants.length !== input.items.length) return { ok: false, error: "One or more products were not found." };
