@@ -56,7 +56,7 @@ export default async function AccountPendingPage() {
             <input type="hidden" name="organizationId" value={session.organizationId} />
             <label htmlFor="paymentReference" className="text-sm font-semibold">Payment reference</label>
             <div className="flex flex-col gap-2 sm:flex-row"><input id="paymentReference" name="paymentReference" defaultValue={subscription?.paymentReference ?? ""} placeholder="e.g. M-Pesa transaction code" required className="h-11 min-w-0 flex-1 rounded-md border border-border-strong bg-white px-3 text-sm" /><button type="submit" className="h-11 rounded-md bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover">Submit reference</button></div>
-            <p className="text-xs text-muted-foreground">Send the same reference to DukaOS on WhatsApp so the team can match your payment.</p>
+            <p className="text-xs text-muted-foreground">Your reference is saved for the administration team to verify. Send the same reference to DukaOS on WhatsApp so the team can match your payment.</p>
           </form>}
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <a href={whatsappUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-semibold text-white hover:bg-primary-hover"><MessageCircle size={17} /> WhatsApp payment confirmation</a>

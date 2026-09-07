@@ -6,17 +6,20 @@ import { revalidatePath } from "next/cache";
 import { rawPrisma } from "@/server/db/client";
 import { verifyPassword } from "@/server/auth/password";
 import { createAdminSession, destroyAdminSession, requireAdmin } from "@/server/auth/admin-session";
+import { getCurrentSession } from "@/server/auth/session";
 import { PLAN_CATALOG, type Plan } from "@/lib/billing";
 
 export async function submitPaymentReference(formData: FormData): Promise<void> {
+  const session = await getCurrentSession();
   const organizationId = String(formData.get("organizationId") || "");
   const paymentReference = String(formData.get("paymentReference") || "").trim();
-  if (!organizationId || !paymentReference) return;
+  if (!session?.organizationId || session.organizationId !== organizationId || !paymentReference) return;
   await rawPrisma.subscription.update({
-    where: { organizationId },
+    where: { organizationId: session.organizationId },
     data: { paymentReference, paymentSubmittedAt: new Date() },
   });
   revalidatePath("/account-pending");
+  revalidatePath("/admin");
 }
 
 export async function adminLogin(raw: { email: string; password: string }) {
@@ -38,6 +41,8 @@ export async function approveSubscription(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const subscriptionId = String(formData.get("subscriptionId") || "");
   if (!subscriptionId) return;
+  const subscription = await rawPrisma.subscription.findUnique({ where: { id: subscriptionId }, select: { organizationId: true, status: true, paymentReference: true } });
+  if (!subscription || subscription.status !== "pending_payment" || !subscription.paymentReference?.trim()) return;
   await rawPrisma.subscription.update({
     where: { id: subscriptionId },
     data: {
@@ -48,6 +53,8 @@ export async function approveSubscription(formData: FormData): Promise<void> {
     },
   });
   revalidatePath("/admin");
+  revalidatePath("/account-pending");
+  revalidatePath(`/admin/organizations/${subscription.organizationId}`);
 }
 
 export async function pauseOrganization(formData: FormData): Promise<void> {

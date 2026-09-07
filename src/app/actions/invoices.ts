@@ -6,6 +6,7 @@ import Decimal from "decimal.js";
 import { InvoiceActivityType, InvoicePaymentMethod, InvoiceStatus } from "@prisma/client";
 import { requireAuthContext, AuthError } from "@/server/auth/context";
 import { recordAudit } from "@/server/services/audit";
+import { brandedEmail, sendEmail } from "@/server/services/messaging";
 import { calculateInvoice, type InvoiceLineInput } from "@/lib/invoices/calculations";
 import type { ActionResult } from "./auth";
 
@@ -80,6 +81,25 @@ export async function createInvoice(formData: FormData): Promise<ActionResult<{ 
       });
       return created;
     });
+    if (shouldSend && customer.email) {
+      const invoiceUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/invoice/view/${invoice.publicToken}`;
+      try {
+        await sendEmail({
+          recipient: customer.email,
+          subject: `Invoice ${invoice.invoiceNumber} from DukaOS`,
+          message: `Hello ${customer.name},\n\nYour invoice ${invoice.invoiceNumber} is ready.\nAmount: ${invoice.currency} ${invoice.total.toString()}\n\nView invoice: ${invoiceUrl}`,
+          html: brandedEmail({
+            preheader: `Invoice ${invoice.invoiceNumber} from ${invoice.organizationId ? "DukaOS" : "DukaOS"}.`,
+            eyebrow: "Invoice",
+            title: `Invoice ${invoice.invoiceNumber}`,
+            body: `<p style="margin:0 0 12px">Hello ${customer.name.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", "\"": "&quot;" })[character] ?? character)},</p><p style="margin:0">Your invoice is ready. The amount due is <strong style="color:#102b4e">${invoice.currency} ${invoice.total.toString()}</strong>.</p>`,
+            cta: { label: "View invoice", url: invoiceUrl },
+          }),
+        });
+      } catch (error) {
+        console.error(`[invoice:${invoice.id}] email delivery failed`, error);
+      }
+    }
     await recordAudit({ organizationId: ctx.organizationId, userId: ctx.userId, action: "INVOICE_CREATED", entityType: "Invoice", entityId: invoice.id, metadata: { invoiceNumber: invoice.invoiceNumber, total: calculated.total } });
     revalidatePath("/dashboard/invoices");
     return { ok: true, data: { id: invoice.id } };

@@ -6,6 +6,7 @@ import { rawPrisma } from "@/server/db/client";
 import { hashPassword, verifyPassword } from "@/server/auth/password";
 import { createSession, destroyCurrentSession } from "@/server/auth/session";
 import { recordAudit } from "@/server/services/audit";
+import { brandedEmail, sendMessage } from "@/server/services/messaging";
 import {
   provisionSystemRoles,
   provisionDefaultExpenseCategories,
@@ -229,11 +230,6 @@ function hashToken(token: string): string {
  * registered — the caller should always show a generic "check your
  * email" message.
  *
- * TODO(email-integration): this currently only creates the token record.
- * Actually emailing the reset link requires EMAIL_API_KEY to be wired up
- * to a provider (see .env.example / DEPLOYMENT.md) — until then the link
- * is logged server-side so it can be tested manually. This is flagged
- * rather than faked so nobody mistakes it for a working email flow.
  */
 export async function requestPasswordReset(
   raw: unknown
@@ -258,8 +254,23 @@ export async function requestPasswordReset(
     });
 
     const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/reset-password?token=${token}`;
-    // TODO(email-integration): send via configured email provider instead.
-    console.log(`[password-reset] ${user.email} -> ${resetUrl}`);
+    try {
+      await sendMessage({
+        channel: "email",
+        recipient: user.email,
+        subject: "Reset your DukaOS password",
+        message: `Reset your password using this link: ${resetUrl}\n\nThis link expires in 30 minutes.`,
+        html: brandedEmail({
+          preheader: "Reset your DukaOS password.",
+          eyebrow: "Account security",
+          title: "Reset your password",
+          body: "We received a request to reset your DukaOS password. Use the button below to choose a new password. This link expires in 30 minutes.",
+          cta: { label: "Reset password", url: resetUrl },
+        }),
+      });
+    } catch (error) {
+      console.error("[password-reset] email delivery failed", error);
+    }
   }
 
   return { ok: true, data: undefined };
