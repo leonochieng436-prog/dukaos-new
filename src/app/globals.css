@@ -59,15 +59,31 @@
   --color-success-tint: var(--success-tint);
   --color-info: var(--info);
   --color-info-tint: var(--info-tint);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-playfair-display);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.03em;
+}
+
+.premium-serif {
+  font-family: var(--font-playfair-display), Georgia, serif;
+  letter-spacing: -0.05em;
 }
 
 .auth-welcome {

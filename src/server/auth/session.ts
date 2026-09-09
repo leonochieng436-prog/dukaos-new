@@ -115,13 +115,34 @@ export async function getCurrentSession() {
     return null;
   }
 
-  const organization = session.organizationId
-    ? await rawPrisma.organization.findUnique({
+  if (session.organizationId) {
+    const [organization, membership] = await Promise.all([
+      rawPrisma.organization.findUnique({
         where: { id: session.organizationId },
-        select: { timezone: true },
-      })
-    : null;
-  const dailyExpiry = getNextMidnight(organization?.timezone ?? "UTC", session.createdAt);
+        select: { isActive: true, timezone: true },
+      }),
+      rawPrisma.userOrganization.findUnique({
+        where: {
+          userId_organizationId: {
+            userId: session.userId,
+            organizationId: session.organizationId,
+          },
+        },
+        select: { isActive: true },
+      }),
+    ]);
+
+    if (!organization?.isActive || !membership?.isActive) {
+      return null;
+    }
+
+    const dailyExpiry = getNextMidnight(organization.timezone, session.createdAt);
+    if (session.expiresAt < new Date() || dailyExpiry < new Date()) return null;
+
+    return session;
+  }
+
+  const dailyExpiry = getNextMidnight("UTC", session.createdAt);
   if (session.expiresAt < new Date() || dailyExpiry < new Date()) return null;
 
   return session;

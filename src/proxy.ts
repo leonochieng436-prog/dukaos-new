@@ -6,7 +6,10 @@ const SESSION_COOKIE = "pos_session";
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Only protect dashboard routes.
+  // This is only a lightweight redirect gate. Final authorization still
+  // happens in server-side auth checks (`getCurrentSession()` /
+  // `requireAuthContext()`), which validate the token, expiry, user state,
+  // organization and active membership before granting access.
   if (pathname.startsWith("/dashboard")) {
     const hasSessionCookie = request.cookies.has(SESSION_COOKIE);
 

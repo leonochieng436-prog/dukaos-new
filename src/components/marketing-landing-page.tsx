@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { CookieConsentBanner } from "@/components/legal-popups";
 import {
   ArrowRight,
   BarChart3,
@@ -478,7 +479,7 @@ function PricingSection() {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
             Simple pricing. Powerful business management.
           </p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h2 className="premium-serif mt-3 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
             Start small, grow without limits.
           </h2>
           <p className="mt-4 text-sm leading-6 text-muted-foreground">
@@ -490,7 +491,7 @@ function PricingSection() {
           <button
             type="button"
             onClick={() => setAnnual(false)}
-            className={`rounded-md px-4 py-2.5 text-sm font-semibold ${!annual ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"}`}
+            className={`rounded-xl px-4 py-2.5 text-sm font-semibold tracking-[0.02em] ${!annual ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"}`}
             aria-pressed={!annual}
           >
             Monthly
@@ -498,7 +499,7 @@ function PricingSection() {
           <button
             type="button"
             onClick={() => setAnnual(true)}
-            className={`rounded-md px-4 py-2.5 text-sm font-semibold ${annual ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"}`}
+            className={`rounded-xl px-4 py-2.5 text-sm font-semibold tracking-[0.02em] ${annual ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"}`}
             aria-pressed={annual}
           >
             Annual <span className="text-[#8de0c1]">(-10%)</span>
@@ -568,7 +569,7 @@ function PricingSection() {
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#8de0c1]">
               DukaOS launch offer
             </p>
-            <h3 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
+            <h3 className="premium-serif mt-3 text-2xl font-semibold tracking-[-0.04em] sm:text-3xl">
               Get your business operational from day one.
             </h3>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-50/75">
@@ -663,6 +664,8 @@ function PricingSection() {
 
 export function MarketingLandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [cookieBannerOpen, setCookieBannerOpen] = useState(true);
+
   return (
     <main className="overflow-hidden bg-[#f8faf9] text-foreground">
       <header className="sticky top-0 z-50 border-b border-[#dce8e3]/80 bg-[#f8faf9]/90 backdrop-blur-md">
@@ -728,14 +731,22 @@ export function MarketingLandingPage() {
         )}
       </header>
 
-      <section className="relative border-b border-[#dce8e3] bg-[radial-gradient(circle_at_80%_10%,rgba(141,224,193,0.25),transparent_28%),linear-gradient(120deg,#f8faf9,#e8f6ef)]">
-        <div className="mx-auto grid max-w-7xl gap-12 px-5 pb-16 pt-16 sm:px-8 sm:pt-24 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-16 lg:px-10 lg:pb-24">
+      <section
+        className="relative overflow-hidden border-b border-[#dce8e3]"
+        style={{
+          backgroundImage: "url('/images/hero1.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.96)_0%,rgba(255,255,255,0.86)_32%,rgba(255,255,255,0.72)_48%,rgba(255,255,255,0.22)_100%)]" />
+        <div className="relative mx-auto grid max-w-7xl gap-12 px-5 pb-16 pt-16 sm:px-8 sm:pt-24 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-16 lg:px-10 lg:pb-24">
           <div className="max-w-xl">
             <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-white/70 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
               <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Business
               operations, connected
             </p>
-            <h1 className="text-5xl font-semibold leading-[0.98] tracking-[-0.03em] sm:text-6xl lg:text-[4.5rem]">
+            <h1 className="premium-serif text-4xl font-semibold leading-[0.92] tracking-[-0.06em] sm:text-5xl lg:text-[4.1rem]">
               The complete operating system{" "}
               <span className="text-primary">for your business.</span>
             </h1>
@@ -744,16 +755,16 @@ export function MarketingLandingPage() {
               branches, and reporting into one connected platform for growing
               businesses.
             </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-8 flex flex-row flex-wrap justify-start gap-3">
               <Link
                 href="/register"
-                className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-3.5 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(15,123,108,0.2)] hover:bg-primary-hover"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold tracking-[0.02em] text-white shadow-[0_12px_24px_rgba(15,123,108,0.2)] transition-transform duration-150 hover:-translate-y-0.5 hover:bg-primary-hover"
               >
                 Start free <ArrowRight size={17} />
               </Link>
               <a
                 href="#features"
-                className="inline-flex items-center justify-center gap-2 rounded-md border border-border-strong bg-white/75 px-5 py-3.5 text-sm font-semibold hover:border-primary hover:text-primary"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border-strong bg-white/80 px-6 py-3.5 text-sm font-semibold tracking-[0.02em] text-foreground transition-all duration-150 hover:border-primary hover:text-primary"
               >
                 Explore features
               </a>
@@ -774,122 +785,41 @@ export function MarketingLandingPage() {
               ))}
             </div>
           </div>
-          <div className="rounded-2xl border border-white/70 bg-white p-3 shadow-[0_28px_80px_rgba(18,57,51,0.18)] sm:p-5">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <div className="flex items-center gap-2">
-                <span className="grid h-7 w-7 place-items-center rounded-md bg-primary text-[10px] font-bold text-white">
-                  D
-                </span>
-                <span className="text-xs font-bold tracking-[0.12em]">
-                  DUKAOS
-                </span>
-              </div>
-              <span className="rounded-full bg-success-tint px-2.5 py-1 text-[10px] font-semibold text-success">
-                Live workspace
-              </span>
-            </div>
-            <div className="grid gap-3 pt-4 sm:grid-cols-[0.78fr_1.22fr]">
-              <div className="hidden space-y-2 rounded-lg bg-[#f4f7f6] p-3 sm:block">
-                <p className="mb-4 text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-                  Workspace
-                </p>
-                {[
-                  "Overview",
-                  "Point of sale",
-                  "Inventory",
-                  "Purchases",
-                  "Customers",
-                ].map((item, index) => (
-                  <div
-                    key={item}
-                    className={`rounded-md px-2.5 py-2 text-[10px] font-medium ${index === 0 ? "bg-primary text-white" : "text-muted-foreground"}`}
-                  >
-                    {item}
-                  </div>
-                ))}
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-[10px] text-muted-foreground">
-                    Your business at a glance
-                  </p>
-                  <p className="mt-1 text-lg font-semibold tracking-tight">
-                    Today is moving well
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-lg border border-primary/15 bg-primary-tint p-3">
-                    <p className="text-[9px] text-primary/70">Sales today</p>
-                    <p className="mt-1 font-tabular text-sm font-semibold text-primary">
-                      KES 248,500
-                    </p>
-                    <p className="mt-1 text-[9px] text-success">
-                      +12.8% this week
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-border bg-[#fbfcfc] p-3">
-                    <p className="text-[9px] text-muted-foreground">
-                      Stock items
-                    </p>
-                    <p className="mt-1 font-tabular text-sm font-semibold">
-                      1,284
-                    </p>
-                    <p className="mt-1 text-[9px] text-warning">
-                      18 need attention
-                    </p>
-                  </div>
-                </div>
-                <div className="rounded-lg border border-border p-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-semibold">Sales activity</p>
-                    <p className="text-[9px] text-muted-foreground">
-                      This week
-                    </p>
-                  </div>
-                  <div className="mt-4 flex h-20 items-end gap-2 px-1">
-                    {[38, 56, 46, 70, 58, 82, 66].map((height, index) => (
-                      <span
-                        key={index}
-                        className={`w-full rounded-t-sm ${index === 5 ? "bg-primary" : "bg-primary/20"}`}
-                        style={{ height: `${height}%` }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <div className="hidden lg:block" aria-hidden="true" />
         </div>
       </section>
 
       <section className="border-b border-border bg-white">
-        <div className="mx-auto grid max-w-7xl gap-7 px-5 py-8 sm:grid-cols-3 sm:px-8 lg:px-10">
-          <div className="flex gap-3">
-            <ReceiptText className="shrink-0 text-primary" size={22} />
-            <div>
-              <h2 className="text-sm font-semibold">Sell with confidence</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Every transaction accounted for
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <WalletCards className="shrink-0 text-primary" size={22} />
-            <div>
-              <h2 className="text-sm font-semibold">Know what is owed</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Credit and supplier balances in view
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <ShieldCheck className="shrink-0 text-primary" size={22} />
-            <div>
-              <h2 className="text-sm font-semibold">Keep control</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Secure roles and isolated workspaces
-              </p>
-            </div>
+        <div className="mx-auto max-w-7xl px-5 py-5 sm:px-8 lg:px-10">
+          <div className="grid overflow-hidden border border-border bg-[#f8fbfa] shadow-[0_10px_24px_rgba(15,123,108,0.04)] sm:grid-cols-3">
+            {[
+              {
+                icon: ReceiptText,
+                title: "Sell with confidence",
+                text: "Every transaction accounted for",
+              },
+              {
+                icon: WalletCards,
+                title: "Know what is owed",
+                text: "Credit and supplier balances in view",
+              },
+              {
+                icon: ShieldCheck,
+                title: "Keep control",
+                text: "Secure roles and isolated workspaces",
+              },
+            ].map(({ icon: Icon, title, text }) => (
+              <div
+                key={title}
+                className="group relative flex gap-3 border-l border-border px-5 py-5 first:border-l-0 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-[inset_0_1px_0_rgba(15,123,108,0.08)]"
+              >
+                <Icon className="mt-0.5 shrink-0 text-primary transition-transform duration-200 group-hover:scale-[1.04]" size={22} />
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{text}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -899,7 +829,7 @@ export function MarketingLandingPage() {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
             The everyday questions
           </p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h2 className="mt-3 text-4xl font-semibold leading-[1.02] tracking-[-0.04em] sm:text-5xl">
             Running a business should not mean running around for information.
           </h2>
           <p className="mt-4 text-base leading-7 text-muted-foreground">
@@ -943,7 +873,7 @@ export function MarketingLandingPage() {
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#8de0c1]">
               More than a till
             </p>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
+            <h2 className="premium-serif mt-4 text-3xl font-semibold leading-[1.02] tracking-[-0.04em] sm:text-4xl">
               DukaOS is your business operating system.
             </h2>
             <p className="mt-5 max-w-md text-sm leading-7 text-emerald-50/70">
@@ -982,7 +912,7 @@ export function MarketingLandingPage() {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
             The complete toolkit
           </p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h2 className="premium-serif mt-3 text-3xl font-semibold leading-[1.02] tracking-[-0.04em] sm:text-4xl">
             Everything you need to operate with confidence.
           </h2>
           <p className="mt-4 text-base leading-7 text-muted-foreground">
@@ -991,23 +921,30 @@ export function MarketingLandingPage() {
           </p>
         </div>
         <div className="mt-12 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {featureGroups.map(({ icon: Icon, name, description, items }) => (
+          {featureGroups.map(({ name, description, items }, index) => (
             <article
               key={name}
-              className="rounded-xl border border-border bg-white p-6"
+              className="group rounded-xl border border-border bg-white p-6 transition-all duration-200 hover:border-primary hover:bg-primary hover:shadow-[0_20px_42px_rgba(15,123,108,0.16)]"
             >
-              <Icon className="text-primary" size={22} />
-              <h3 className="mt-6 text-lg font-semibold">{name}</h3>
-              <p className="mt-2 min-h-12 text-sm leading-6 text-muted-foreground">
+              <div className="grid h-12 w-12 place-items-center rounded-full bg-primary-tint text-lg font-bold text-primary transition-colors duration-200 group-hover:bg-white/12 group-hover:text-white">
+                {index + 1}
+              </div>
+              <h3 className="mt-6 text-lg font-semibold text-foreground transition-colors duration-200 group-hover:text-white">
+                {name}
+              </h3>
+              <p className="mt-2 min-h-12 text-sm leading-6 text-muted-foreground transition-colors duration-200 group-hover:text-emerald-50/90">
                 {description}
               </p>
-              <ul className="mt-5 space-y-2 border-t border-border pt-5">
+              <ul className="mt-5 space-y-2 border-t border-border pt-5 transition-colors duration-200 group-hover:border-white/20">
                 {items.map((item) => (
                   <li
                     key={item}
-                    className="flex gap-2 text-xs text-muted-foreground"
+                    className="flex gap-2 text-xs text-muted-foreground transition-colors duration-200 group-hover:text-emerald-50/90"
                   >
-                    <Check className="mt-0.5 shrink-0 text-primary" size={15} />
+                    <Check
+                      className="mt-0.5 shrink-0 text-primary transition-colors duration-200 group-hover:text-white"
+                      size={15}
+                    />
                     {item}
                   </li>
                 ))}
@@ -1017,11 +954,7 @@ export function MarketingLandingPage() {
         </div>
       </section>
 
-      <section className="border-y border-border bg-[#eef5f1]">
-        <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
-          <ProductTour />
-        </div>
-      </section>
+      
 
       <section
         id="workflows"
@@ -1031,7 +964,7 @@ export function MarketingLandingPage() {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
             Workflows that make sense
           </p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h2 className="mt-3 text-4xl font-semibold leading-[1.03] tracking-[-0.04em] sm:text-5xl">
             From the first action to the full picture.
           </h2>
           <p className="mt-4 text-sm leading-6 text-muted-foreground">
@@ -1039,25 +972,29 @@ export function MarketingLandingPage() {
           </p>
         </div>
         <div className="mt-12 grid gap-4 lg:grid-cols-3">
-          {workflows.map(({ icon: Icon, title, steps }) => (
+          {workflows.map(({ title, steps }, index) => (
             <article
               key={title}
-              className="rounded-xl border border-border bg-white p-6"
+              className="group rounded-xl border border-border bg-white p-6 transition-all duration-200 hover:border-primary hover:bg-primary hover:shadow-[0_20px_42px_rgba(15,123,108,0.16)]"
             >
-              <Icon className="text-primary" size={22} />
-              <h3 className="mt-5 text-base font-semibold">{title}</h3>
+              <div className="grid h-12 w-12 place-items-center rounded-full bg-primary-tint text-lg font-bold text-primary transition-colors duration-200 group-hover:bg-white/12 group-hover:text-white">
+                {index + 1}
+              </div>
+              <h3 className="mt-5 text-base font-semibold text-foreground transition-colors duration-200 group-hover:text-white">
+                {title}
+              </h3>
               <div className="mt-6 space-y-2">
-                {steps.map((step, index) => (
+                {steps.map((step, stepIndex) => (
                   <div key={step} className="flex items-center gap-3">
-                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary-tint font-tabular text-[10px] font-bold text-primary">
-                      {index + 1}
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary-tint font-tabular text-[10px] font-bold text-primary transition-colors duration-200 group-hover:bg-white/12 group-hover:text-white">
+                      {stepIndex + 1}
                     </span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground transition-colors duration-200 group-hover:text-emerald-50/90">
                       {step}
                     </span>
-                    {index < steps.length - 1 && (
+                    {stepIndex < steps.length - 1 && (
                       <ArrowRight
-                        className="ml-auto text-border-strong"
+                        className="ml-auto text-border-strong transition-colors duration-200 group-hover:text-white/70"
                         size={14}
                       />
                     )}
@@ -1074,7 +1011,7 @@ export function MarketingLandingPage() {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
             Built around real businesses
           </p>
-          <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h2 className="mt-3 max-w-2xl text-4xl font-semibold leading-[1.03] tracking-[-0.04em] sm:text-5xl">
             A clearer way to run the business you already have.
           </h2>
           <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1129,7 +1066,7 @@ export function MarketingLandingPage() {
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
               Before and after
             </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight">
+            <h2 className="mt-3 text-4xl font-semibold leading-[1.02] tracking-[-0.04em]">
               Trade uncertainty for a business you can see.
             </h2>
           </div>
@@ -1182,7 +1119,7 @@ export function MarketingLandingPage() {
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
               Your first day
             </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+            <h2 className="mt-3 text-4xl font-semibold leading-[1.02] tracking-[-0.04em] sm:text-5xl">
               Get your business running in four steps.
             </h2>
           </div>
@@ -1231,7 +1168,7 @@ export function MarketingLandingPage() {
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
               Plan details
             </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight">
+            <h2 className="mt-3 text-4xl font-semibold leading-[1.02] tracking-[-0.04em]">
               Compare what is included.
             </h2>
           </div>
@@ -1285,7 +1222,7 @@ export function MarketingLandingPage() {
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
               Questions, answered
             </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight">
+            <h2 className="mt-3 text-4xl font-semibold leading-[1.02] tracking-[-0.04em]">
               Clarity before commitment.
             </h2>
             <p className="mt-4 text-sm leading-6 text-muted-foreground">
@@ -1312,29 +1249,28 @@ export function MarketingLandingPage() {
         </div>
       </section>
 
-      <section className="bg-[#dff3e9]">
-        <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-8 px-5 py-16 sm:px-8 md:flex-row md:items-center lg:px-10">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
-              Your next business day
-            </p>
-            <h2 className="mt-3 max-w-xl text-3xl font-semibold tracking-tight sm:text-4xl">
-              Your business is growing. Your tools should grow with it.
-            </h2>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Create your workspace and start seeing the full picture.
-            </p>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <section className="border-t border-border bg-[#dff3e9]">
+        <div className="mx-auto max-w-3xl px-5 py-16 text-center sm:px-8 lg:px-10">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
+            Ready to run smarter?
+          </p>
+          <h2 className="premium-serif mt-4 text-3xl font-semibold tracking-[-0.04em] sm:text-5xl">
+            Ready to run your business smarter?
+          </h2>
+          <p className="mt-5 text-base leading-7 text-muted-foreground">
+            Start managing sales, inventory, customers, payments, and reporting
+            in one connected workspace.
+          </p>
+          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row sm:items-center">
             <Link
               href="/register"
-              className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-3.5 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(15,123,108,0.18)] hover:bg-primary-hover"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold tracking-[0.02em] text-white shadow-[0_10px_20px_rgba(15,123,108,0.18)] transition-transform duration-150 hover:-translate-y-0.5 hover:bg-primary-hover"
             >
-              Create your account <ArrowRight size={17} />
+              Get started <ArrowRight size={17} />
             </Link>
             <Link
               href="/login"
-              className="text-center text-sm font-semibold text-primary hover:underline"
+              className="text-center text-sm font-semibold tracking-[0.01em] text-primary hover:underline"
             >
               Already have an account? Log in
             </Link>
@@ -1343,35 +1279,157 @@ export function MarketingLandingPage() {
       </section>
 
       <footer className="bg-[#103f38] text-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-8 px-5 py-10 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-10">
-          <div>
-            <Logo footer />
-            <p className="mt-3 text-xs text-emerald-50/60">
-              The operating system for growing businesses.
-            </p>
+        <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:px-10">
+          <div className="grid gap-10 border-b border-white/10 pb-10 lg:grid-cols-[1.35fr_0.8fr_0.8fr_0.8fr_0.8fr]">
+            <div className="max-w-sm">
+              <Logo footer />
+              <p className="mt-5 text-[15px] font-medium text-[#d8f7e8]">
+                More than a till.
+              </p>
+              <p className="mt-2 text-sm leading-6 text-emerald-50/70">
+                Your business operating system.
+              </p>
+              <p className="mt-4 text-sm leading-6 text-emerald-50/70">
+                Manage sales, inventory, customers, payments, and your entire
+                business from one connected platform.
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8de0c1]">
+                Product
+              </p>
+              <ul className="mt-5 space-y-3 text-sm text-emerald-50/75">
+                {[
+                  "POS",
+                  "Inventory",
+                  "Sales",
+                  "Customers",
+                  "Purchases",
+                  "Suppliers",
+                  "Payments",
+                  "Reports",
+                ].map((item) => (
+                  <li key={item}>
+                    <a href="#features" className="hover:text-white">
+                      {item}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8de0c1]">
+                Business
+              </p>
+              <ul className="mt-5 space-y-3 text-sm text-emerald-50/75">
+                {[
+                  "Pricing",
+                  "Retail",
+                  "Supermarkets",
+                  "Restaurants",
+                  "Pharmacies",
+                  "Wholesalers",
+                  "Multi-branch",
+                ].map((item) => (
+                  <li key={item}>
+                    <a href="#pricing" className="hover:text-white">
+                      {item}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8de0c1]">
+                Resources
+              </p>
+              <ul className="mt-5 space-y-3 text-sm text-emerald-50/75">
+                {[
+                  "Help Center",
+                  "Documentation",
+                  "Getting Started",
+                  "FAQs",
+                  "Support",
+                  "System Status",
+                ].map((item) => (
+                  <li key={item}>
+                    <a href="#faq" className="hover:text-white">
+                      {item}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8de0c1]">
+                Company
+              </p>
+              <ul className="mt-5 space-y-3 text-sm text-emerald-50/75">
+                {[
+                  "About DukaOS",
+                  "Contact",
+                  "Careers",
+                  "Partners",
+                ].map((item) => (
+                  <li key={item}>
+                    <a href="#" className="hover:text-white">
+                      {item}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-8">
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8de0c1]">
+                  Connect with us
+                </p>
+                <div className="mt-4 flex flex-wrap gap-4 text-sm text-emerald-50/75">
+                  {[
+                    "Instagram",
+                    "WhatsApp",
+                    "Facebook",
+                    "LinkedIn",
+                  ].map((item) => (
+                    <a key={item} href="#" className="hover:text-white">
+                      {item}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-x-6 gap-y-3 text-xs text-emerald-50/70">
-            <a href="#features" className="hover:text-white">
-              Features
-            </a>
-            <a href="#pricing" className="hover:text-white">
-              Pricing
-            </a>
-            <a href="#workflows" className="hover:text-white">
-              Workflows
-            </a>
-            <Link href="/login" className="hover:text-white">
-              Log in
-            </Link>
-            <Link href="/register" className="hover:text-white">
-              Get started
-            </Link>
+
+          <div className="mt-8 flex flex-col justify-between gap-4 text-sm text-emerald-50/60 md:flex-row md:items-center">
+            <p>© {new Date().getFullYear()} DukaOS. All rights reserved.</p>
+            <div className="flex flex-wrap gap-x-5 gap-y-2">
+              {[
+                { label: "Privacy Policy", href: "/privacy-policy" },
+                { label: "Terms of Service", href: "/terms" },
+                { label: "Cookie Policy", href: "/cookies" },
+                { label: "Status", href: "/" },
+              ].map((item) => (
+                <Link key={item.label} href={item.href} className="hover:text-white">
+                  {item.label}
+                </Link>
+              ))}
+            </div>
           </div>
-          <p className="text-xs text-emerald-50/45">
-            &copy; {new Date().getFullYear()} DukaOS
-          </p>
+
+          <div className="mt-6 flex items-center justify-center gap-2 text-xs font-medium text-emerald-50/50">
+            <span aria-hidden="true">🇰🇪</span>
+            <span>Built for African businesses</span>
+          </div>
         </div>
       </footer>
+
+      <CookieConsentBanner
+        open={cookieBannerOpen}
+        onAccept={() => setCookieBannerOpen(false)}
+        onReject={() => setCookieBannerOpen(false)}
+      />
     </main>
   );
 }
