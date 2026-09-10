@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowRight, ArrowUp, Globe2, Menu, X } from "lucide-react";
+import { type LegalTab } from "@/components/legal-popups";
 
 const navItems = [
   ["About", "/about"],
@@ -42,7 +43,13 @@ export function BrandMark({ footer = false }: { footer?: boolean }) {
   );
 }
 
-export function MarketingPageHeader({ active }: { active?: "about" | "contact" }) {
+export function MarketingPageHeader({
+  active,
+  onOpenLegal,
+}: {
+  active?: "about" | "contact";
+  onOpenLegal?: (tab: LegalTab) => void;
+}) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -63,6 +70,27 @@ export function MarketingPageHeader({ active }: { active?: "about" | "contact" }
               {label}
             </Link>
           ))}
+          <button
+            type="button"
+            onClick={() => onOpenLegal?.("privacy")}
+            className="hover:text-foreground"
+          >
+            Privacy
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenLegal?.("terms")}
+            className="hover:text-foreground"
+          >
+            Terms
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenLegal?.("cookies")}
+            className="hover:text-foreground"
+          >
+            Cookies
+          </button>
         </nav>
         <div className="hidden items-center gap-3 lg:flex">
           <Link href="/login" className="px-3 py-2 text-sm font-medium hover:text-primary">
@@ -100,6 +128,36 @@ export function MarketingPageHeader({ active }: { active?: "about" | "contact" }
             <Link href="/login" className="mt-2 px-3 py-3 font-medium text-primary" onClick={() => setMenuOpen(false)}>
               Log in
             </Link>
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                onOpenLegal?.("privacy");
+              }}
+              className="px-3 py-3 text-left"
+            >
+              Privacy Policy
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                onOpenLegal?.("terms");
+              }}
+              className="px-3 py-3 text-left"
+            >
+              Terms & Conditions
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                onOpenLegal?.("cookies");
+              }}
+              className="px-3 py-3 text-left"
+            >
+              Cookie Policy
+            </button>
             <Link
               href="/register"
               className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 font-semibold text-white"
@@ -114,7 +172,7 @@ export function MarketingPageHeader({ active }: { active?: "about" | "contact" }
   );
 }
 
-export function MarketingFooter() {
+export function MarketingFooter({ onOpenLegal }: { onOpenLegal?: (tab: LegalTab) => void }) {
   return (
     <footer className="bg-[#103f38] text-white">
       <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:px-10">
@@ -207,16 +265,35 @@ export function MarketingFooter() {
         <div className="mt-8 flex flex-col justify-between gap-4 text-sm text-emerald-50/60 md:flex-row md:items-center">
           <p>© {new Date().getFullYear()} DukaOS. All rights reserved.</p>
           <div className="flex flex-wrap gap-x-5 gap-y-2">
-            {[
-              { label: 'Privacy Policy', href: '/privacy-policy' },
-              { label: 'Terms of Service', href: '/terms' },
-              { label: 'Cookie Policy', href: '/cookie-policy' },
+            {([
+              { label: 'Privacy Policy', action: 'privacy' as const },
+              { label: 'Terms of Service', action: 'terms' as const },
+              { label: 'Cookie Policy', action: 'cookies' as const },
               { label: 'Status', href: '/' },
-            ].map((item) => (
-              <Link key={item.label} href={item.href} className="hover:text-white">
-                {item.label}
-              </Link>
-            ))}
+            ] as Array<{ label: string; href?: string; action?: LegalTab }>)
+              .map((item) => {
+                if (item.href) {
+                  return (
+                    <Link key={item.label} href={item.href} className="hover:text-white">
+                      {item.label}
+                    </Link>
+                  );
+                }
+
+                const action = item.action;
+                if (!action) return null;
+
+                return (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => onOpenLegal?.(action)}
+                    className="text-left hover:text-white"
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
           </div>
         </div>
 

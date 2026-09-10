@@ -1,4 +1,6 @@
+"use client"; 
 import Link from "next/link";
+import { useState } from "react";
 import {
   ArrowRight,
   BarChart3,
@@ -13,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import { JsonLdScript, MarketingFooter, MarketingPageHeader, RevealOnScroll, ScrollToTopButton } from "@/components/marketing/page-shell";
+import { LegalModal, type LegalTab } from "@/components/legal-popups";
 
 const problemFlow = [
   "Sale",
@@ -135,13 +138,19 @@ const structuredData = {
 };
 
 export function AboutPageContent() {
+  const [legalOpen, setLegalOpen] = useState(false);
+  const [legalTab, setLegalTab] = useState<LegalTab>("privacy");
+
   return (
     <>
       <JsonLdScript data={structuredData} />
       <main className="min-h-screen bg-[#f8faf9] text-foreground">
         <RevealOnScroll />
         <ScrollToTopButton />
-        <MarketingPageHeader active="about" />
+        <MarketingPageHeader active="about" onOpenLegal={(tab) => {
+          setLegalTab(tab);
+          setLegalOpen(true);
+        }} />
 
         <section
           className="reveal-on-scroll relative overflow-hidden border-b border-[#dce8e3]"
@@ -455,7 +464,17 @@ export function AboutPageContent() {
           </div>
         </section>
 
-        <MarketingFooter />
+        <MarketingFooter onOpenLegal={(tab) => {
+          setLegalTab(tab);
+          setLegalOpen(true);
+        }} />
+
+        <LegalModal
+          open={legalOpen}
+          tab={legalTab}
+          onTabChange={setLegalTab}
+          onClose={() => setLegalOpen(false)}
+        />
       </main>
     </>
   );

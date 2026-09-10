@@ -16,6 +16,21 @@ const contactSchema = z.object({
   message: z.string().trim().min(10, "Please share a few more details about your needs."),
 });
 
+function resolveContactRecipient(): string {
+  const explicitRecipient = process.env.CONTACT_TO_EMAIL?.trim();
+  if (explicitRecipient) return explicitRecipient;
+
+  const envFrom = process.env.EMAIL_FROM?.trim();
+  if (envFrom) {
+    const match = envFrom.match(/<([^>]+)>/);
+    if (match?.[1]?.trim()) return match[1].trim();
+    const bareEmail = envFrom.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
+    if (bareEmail) return bareEmail;
+  }
+
+  return "leonochieng436@gmail.com";
+}
+
 export async function submitContactEnquiry(raw: unknown) {
   const parsed = contactSchema.safeParse(raw);
   if (!parsed.success) {
@@ -43,7 +58,7 @@ export async function submitContactEnquiry(raw: unknown) {
       ${input.message}
     `;
 
-    const to = process.env.CONTACT_TO_EMAIL?.trim() || "hello@dukaos.com";
+    const to = resolveContactRecipient();
 
     await sendEmail({
       recipient: to,

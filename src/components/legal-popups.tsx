@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getCookieConsent, type CookieConsentPreferences } from "@/lib/cookie-consent";
@@ -528,11 +527,13 @@ export function CookieConsentBanner({
   onAccept,
   onReject,
   onSavePreferences,
+  onOpenLegal,
 }: {
   open: boolean;
   onAccept: () => void;
   onReject: () => void;
   onSavePreferences?: (preferences: CookieConsentPreferences) => void;
+  onOpenLegal?: (tab: LegalTab) => void;
 }) {
   const [preferencesOpen, setPreferencesOpen] = useState(false);
 
@@ -561,13 +562,21 @@ export function CookieConsentBanner({
                 Essential cookies are always active. Optional cookies are only used according to your preferences.
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-700">
-                <Link href="/cookie-policy" className="font-medium underline-offset-2 hover:text-primary hover:underline">
+                <button
+                  type="button"
+                  onClick={() => onOpenLegal?.("cookies")}
+                  className="font-medium underline-offset-2 hover:text-primary hover:underline"
+                >
                   Cookie Policy
-                </Link>
+                </button>
                 <span aria-hidden="true">·</span>
-                <Link href="/privacy-policy" className="font-medium underline-offset-2 hover:text-primary hover:underline">
+                <button
+                  type="button"
+                  onClick={() => onOpenLegal?.("privacy")}
+                  className="font-medium underline-offset-2 hover:text-primary hover:underline"
+                >
                   Privacy Policy
-                </Link>
+                </button>
               </div>
             </div>
 

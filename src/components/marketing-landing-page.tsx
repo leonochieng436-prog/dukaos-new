@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useSyncExternalStore, useState } from "react";
-import { CookieConsentBanner } from "@/components/legal-popups";
+import { CookieConsentBanner, LegalModal, type LegalTab } from "@/components/legal-popups";
 import { MarketingFooter, RevealOnScroll, ScrollToTopButton } from "@/components/marketing/page-shell";
 import { getCookieConsent, setCookieConsent } from "@/lib/cookie-consent";
 import {
@@ -517,6 +517,8 @@ function PricingSection() {
 export function MarketingLandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [legalOpen, setLegalOpen] = useState(false);
+  const [legalTab, setLegalTab] = useState<LegalTab>("privacy");
   const isClient = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -744,7 +746,7 @@ export function MarketingLandingPage() {
             one reliable operational picture.
           </p>
         </div>
-        <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mt-10 grid overflow-hidden border border-border bg-white sm:grid-cols-2 lg:grid-cols-5">
           {[
             [
               "How much stock do I have?",
@@ -763,14 +765,36 @@ export function MarketingLandingPage() {
               "How is the business performing?",
               "Turn daily transactions into useful reports.",
             ],
-          ].map(([title, text]) => (
-            <div key={title} className="border-t-2 border-primary pt-4">
-              <h3 className="text-sm font-semibold">{title}</h3>
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                {text}
-              </p>
-            </div>
-          ))}
+          ].map(([title, text], index) => {
+            const isLastColumn = (index + 1) % 5 === 0;
+            const isLastRow = index >= 3;
+
+            return (
+              <div
+                key={title}
+                className={[
+                  "group bg-white p-5 transition-colors duration-200 hover:bg-[#f3f8ff]",
+                  !isLastColumn ? "border-r border-border" : "",
+                  !isLastRow ? "border-b border-border" : "",
+                ].join(" ")}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="grid h-9 w-9 place-items-center rounded-full bg-primary-tint font-tabular text-[10px] font-bold text-primary">
+                    {index + 1}
+                  </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+                    Query
+                  </span>
+                </div>
+                <h3 className="mt-5 text-sm font-semibold text-foreground">
+                  {title}
+                </h3>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  {text}
+                </p>
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -807,38 +831,52 @@ export function MarketingLandingPage() {
             business one source of truth.
           </p>
         </div>
-        <div className="mt-12 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {featureGroups.map(({ name, description, items }, index) => (
-            <article
-              key={name}
-              className="reveal-on-scroll group rounded-xl border border-border bg-white p-6 transition-all duration-200 hover:border-primary hover:bg-primary hover:shadow-[0_20px_42px_rgba(15,123,108,0.16)]"
-              style={{ transitionDelay: `${index * 60}ms` }}
-            >
-              <div className="grid h-12 w-12 place-items-center rounded-full bg-primary-tint text-lg font-bold text-primary transition-colors duration-200 group-hover:bg-white/12 group-hover:text-white">
-                {index + 1}
-              </div>
-              <h3 className="mt-6 text-lg font-semibold text-foreground transition-colors duration-200 group-hover:text-white">
-                {name}
-              </h3>
-              <p className="mt-2 min-h-12 text-sm leading-6 text-muted-foreground transition-colors duration-200 group-hover:text-emerald-50/90">
-                {description}
-              </p>
-              <ul className="mt-5 space-y-2 border-t border-border pt-5 transition-colors duration-200 group-hover:border-white/20">
-                {items.map((item) => (
-                  <li
-                    key={item}
-                    className="flex gap-2 text-xs text-muted-foreground transition-colors duration-200 group-hover:text-emerald-50/90"
-                  >
-                    <Check
-                      className="mt-0.5 shrink-0 text-primary transition-colors duration-200 group-hover:text-white"
-                      size={15}
-                    />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </article>
-          ))}
+        <div className="mt-12 grid grid-cols-1 gap-0 overflow-hidden border border-border bg-white sm:grid-cols-2 lg:grid-cols-3">
+          {featureGroups.map(({ name, description, items }, index) => {
+            const isLastColumn = (index + 1) % 3 === 0;
+            const isLastRow = index >= featureGroups.length - (featureGroups.length % 3 === 0 ? 3 : featureGroups.length % 3);
+
+            return (
+              <article
+                key={name}
+                className={[
+                  "reveal-on-scroll bg-white p-7 transition-colors duration-200 hover:bg-[#f3f8ff]",
+                  !isLastColumn ? "border-r border-border" : "",
+                  !isLastRow ? "border-b border-border" : "",
+                ].join(" ")}
+                style={{ transitionDelay: `${index * 60}ms` }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="grid h-10 w-10 place-items-center rounded-full bg-primary-tint text-sm font-bold text-primary">
+                    {index + 1}
+                  </div>
+                  <span className="font-tabular text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                </div>
+                <h3 className="mt-6 text-lg font-semibold text-foreground">
+                  {name}
+                </h3>
+                <p className="mt-2 min-h-12 text-sm leading-6 text-muted-foreground">
+                  {description}
+                </p>
+                <ul className="mt-5 space-y-2 border-t border-border pt-5">
+                  {items.map((item) => (
+                    <li
+                      key={item}
+                      className="flex gap-2 text-xs text-muted-foreground"
+                    >
+                      <Check
+                        className="mt-0.5 shrink-0 text-primary"
+                        size={15}
+                      />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            );
+          })}
         </div>
       </section>
 
@@ -859,38 +897,51 @@ export function MarketingLandingPage() {
             When work happens in one place, the next step does not get lost.
           </p>
         </div>
-        <div className="mt-12 grid gap-4 lg:grid-cols-3">
-          {workflows.map(({ title, steps }, index) => (
-            <article
-              key={title}
-              className="group rounded-xl border border-border bg-white p-6 transition-all duration-200 hover:border-primary hover:bg-primary hover:shadow-[0_20px_42px_rgba(15,123,108,0.16)]"
-            >
-              <div className="grid h-12 w-12 place-items-center rounded-full bg-primary-tint text-lg font-bold text-primary transition-colors duration-200 group-hover:bg-white/12 group-hover:text-white">
-                {index + 1}
-              </div>
-              <h3 className="mt-5 text-base font-semibold text-foreground transition-colors duration-200 group-hover:text-white">
-                {title}
-              </h3>
-              <div className="mt-6 space-y-2">
-                {steps.map((step, stepIndex) => (
-                  <div key={step} className="flex items-center gap-3">
-                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary-tint font-tabular text-[10px] font-bold text-primary transition-colors duration-200 group-hover:bg-white/12 group-hover:text-white">
-                      {stepIndex + 1}
-                    </span>
-                    <span className="text-xs text-muted-foreground transition-colors duration-200 group-hover:text-emerald-50/90">
-                      {step}
-                    </span>
-                    {stepIndex < steps.length - 1 && (
-                      <ArrowRight
-                        className="ml-auto text-border-strong transition-colors duration-200 group-hover:text-white/70"
-                        size={14}
-                      />
-                    )}
+        <div className="mt-12 grid overflow-hidden border border-border bg-white lg:grid-cols-3">
+          {workflows.map(({ title, steps }, index) => {
+            const isLastColumn = index === workflows.length - 1;
+
+            return (
+              <article
+                key={title}
+                className={[
+                  "group bg-white p-6 transition-colors duration-200 hover:bg-[#f3f8ff]",
+                  !isLastColumn ? "border-r border-border" : "",
+                  "border-b border-border lg:border-b-0",
+                ].join(" ")}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="grid h-10 w-10 place-items-center rounded-full bg-primary-tint text-sm font-bold text-primary">
+                    {index + 1}
                   </div>
-                ))}
-              </div>
-            </article>
-          ))}
+                  <span className="font-tabular text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+                    Step {index + 1}
+                  </span>
+                </div>
+                <h3 className="mt-5 text-base font-semibold text-foreground">
+                  {title}
+                </h3>
+                <div className="mt-6 space-y-2">
+                  {steps.map((step, stepIndex) => (
+                    <div key={step} className="flex items-center gap-3">
+                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary-tint font-tabular text-[10px] font-bold text-primary">
+                        {stepIndex + 1}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {step}
+                      </span>
+                      {stepIndex < steps.length - 1 && (
+                        <ArrowRight
+                          className="ml-auto text-border-strong"
+                          size={14}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </article>
+            );
+          })}
         </div>
       </section>
 
@@ -1128,13 +1179,27 @@ export function MarketingLandingPage() {
         </div>
       </section>
 
-      <MarketingFooter />
+      <MarketingFooter onOpenLegal={(tab) => {
+        setLegalTab(tab);
+        setLegalOpen(true);
+      }} />
 
       <CookieConsentBanner
         open={cookieBannerOpen}
         onAccept={handleAcceptConsent}
         onReject={handleRejectConsent}
         onSavePreferences={handleSavePreferences}
+        onOpenLegal={(tab) => {
+          setLegalTab(tab);
+          setLegalOpen(true);
+        }}
+      />
+
+      <LegalModal
+        open={legalOpen}
+        tab={legalTab}
+        onTabChange={setLegalTab}
+        onClose={() => setLegalOpen(false)}
       />
     </main>
   );

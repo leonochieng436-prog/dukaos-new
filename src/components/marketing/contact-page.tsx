@@ -10,6 +10,7 @@ import {
   Phone,
 } from "lucide-react";
 import { submitContactEnquiry } from "@/app/actions/contact";
+import { LegalModal, type LegalTab } from "@/components/legal-popups";
 import { JsonLdScript, MarketingFooter, MarketingPageHeader, RevealOnScroll, ScrollToTopButton } from "@/components/marketing/page-shell";
 
 const faqs = [
@@ -50,6 +51,8 @@ const initialState = {
 
 export function ContactPageContent() {
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [legalOpen, setLegalOpen] = useState(false);
+  const [legalTab, setLegalTab] = useState<LegalTab>("privacy");
   const [state, formAction, isPending] = useActionState(
     async (_previousState: typeof initialState, formData: FormData) => {
       const payload = {
@@ -101,7 +104,10 @@ export function ContactPageContent() {
       <main className="min-h-screen bg-[#f8faf9] text-foreground">
         <RevealOnScroll />
         <ScrollToTopButton />
-        <MarketingPageHeader active="contact" />
+        <MarketingPageHeader active="contact" onOpenLegal={(tab) => {
+          setLegalTab(tab);
+          setLegalOpen(true);
+        }} />
 
         <section className="reveal-on-scroll border-b border-border bg-white">
           <div className="mx-auto grid max-w-7xl gap-10 px-5 py-16 sm:px-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:px-10 lg:py-24">
@@ -333,7 +339,17 @@ export function ContactPageContent() {
           </div>
         </section>
 
-        <MarketingFooter />
+        <MarketingFooter onOpenLegal={(tab) => {
+          setLegalTab(tab);
+          setLegalOpen(true);
+        }} />
+
+        <LegalModal
+          open={legalOpen}
+          tab={legalTab}
+          onTabChange={setLegalTab}
+          onClose={() => setLegalOpen(false)}
+        />
       </main>
     </>
   );

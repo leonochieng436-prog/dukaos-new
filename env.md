@@ -20,7 +20,8 @@ MPESA_CALLBACK_SECRET=""
 
 # ── Messaging ─────────────────────────────────────────────
 EMAIL_API_KEY=""
-EMAIL_FROM="no-reply@example.com"
+CONTACT_TO_EMAIL="leonochieng436@gmail.com"
+EMAIL_FROM="DukaOS <onboarding@resend.dev>"
 SMS_API_KEY=""
 SMS_USERNAME=""
 WHATSAPP_API_KEY=""
