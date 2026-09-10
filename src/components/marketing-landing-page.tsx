@@ -2,8 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useSyncExternalStore, useState } from "react";
 import { CookieConsentBanner } from "@/components/legal-popups";
+import { MarketingFooter, RevealOnScroll, ScrollToTopButton } from "@/components/marketing/page-shell";
+import { getCookieConsent, setCookieConsent } from "@/lib/cookie-consent";
 import {
   ArrowRight,
   BarChart3,
@@ -11,7 +13,6 @@ import {
   Building2,
   Check,
   ChevronDown,
-  ClipboardList,
   CreditCard,
   Menu,
   PackageCheck,
@@ -25,10 +26,12 @@ import {
 } from "lucide-react";
 
 const navItems = [
+  ["About", "/about"],
   ["Features", "#features"],
   ["How it works", "#how-it-works"],
   ["Who it is for", "#industries"],
   ["Pricing", "#pricing"],
+  ["Contact", "/contact"],
 ] as const;
 
 const featureGroups = [
@@ -103,52 +106,6 @@ const featureGroups = [
     ],
   },
 ];
-
-const tourViews = {
-  Dashboard: [
-    "A clear view of your day",
-    "KES 248,500",
-    "Sales today",
-    "+12.8% this week",
-    [38, 56, 46, 70, 58, 82, 66],
-  ],
-  POS: [
-    "A faster counter",
-    "24 items",
-    "Ready to sell",
-    "Receipt preview ready",
-    [62, 48, 72, 54, 80, 64, 76],
-  ],
-  Inventory: [
-    "Stock you can trust",
-    "1,284",
-    "Products tracked",
-    "18 need attention",
-    [80, 72, 58, 64, 46, 52, 70],
-  ],
-  Purchases: [
-    "Purchases in context",
-    "KES 142,000",
-    "Received this month",
-    "Supplier balance visible",
-    [44, 60, 52, 76, 68, 72, 84],
-  ],
-  Customers: [
-    "Relationships, not loose notes",
-    "KES 36,500",
-    "Credit outstanding",
-    "Payments are traceable",
-    [34, 48, 42, 58, 52, 64, 60],
-  ],
-  Reports: [
-    "Decisions with context",
-    "18.4%",
-    "Gross margin",
-    "Compared with last month",
-    [42, 52, 48, 66, 62, 74, 88],
-  ],
-} as const;
-type TourView = keyof typeof tourViews;
 
 const workflows = [
   {
@@ -318,115 +275,10 @@ function Logo({ footer = false }: { footer?: boolean }) {
         width={160}
         height={40}
         className="h-10 w-auto object-contain"
+        style={{ width: "auto", height: "auto" }}
         priority
       />
     </Link>
-  );
-}
-
-function ProductTour() {
-  const [active, setActive] = useState<TourView>("Dashboard");
-  const [title, metric, label, note, bars] = tourViews[active];
-  return (
-    <div className="grid gap-8 lg:grid-cols-[0.65fr_1.35fr] lg:items-center">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
-          See DukaOS in action
-        </p>
-        <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-          The detail you need, without the noise.
-        </h2>
-        <p className="mt-4 text-sm leading-6 text-muted-foreground">
-          Move from the big picture to the daily work in a few clicks. Every
-          view is connected to the same business record.
-        </p>
-        <div className="mt-8 flex flex-wrap gap-2">
-          {(Object.keys(tourViews) as TourView[]).map((name) => (
-            <button
-              key={name}
-              type="button"
-              onClick={() => setActive(name)}
-              className={`rounded-md px-3 py-2 text-xs font-semibold ${active === name ? "bg-primary text-white" : "border border-border bg-white text-muted-foreground hover:border-primary hover:text-primary"}`}
-            >
-              {name}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="rounded-xl border border-border bg-white p-3 shadow-[0_18px_45px_rgba(18,57,51,0.08)] sm:p-5">
-        <div className="flex items-center justify-between border-b border-border pb-4">
-          <div className="flex items-center gap-2">
-            <span className="grid h-7 w-7 place-items-center rounded-md bg-primary text-[10px] font-bold text-white">
-              D
-            </span>
-            <span className="text-xs font-bold tracking-[0.12em]">
-              {active.toUpperCase()}
-            </span>
-          </div>
-          <span className="text-[10px] text-muted-foreground">
-            Workspace / {active}
-          </span>
-        </div>
-        <div className="grid gap-4 pt-5 sm:grid-cols-[0.7fr_1.3fr]">
-          <div className="hidden rounded-lg bg-[#f3f7f5] p-3 sm:block">
-            <p className="mb-4 text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
-              Navigation
-            </p>
-            {[
-              "Overview",
-              "Point of sale",
-              "Inventory",
-              "Purchases",
-              "Customers",
-              "Reports",
-            ].map((item) => (
-              <div
-                key={item}
-                className={`mb-1 rounded-md px-2 py-2 text-[10px] ${item === active || (active === "Dashboard" && item === "Overview") ? "bg-primary text-white" : "text-muted-foreground"}`}
-              >
-                {item}
-              </div>
-            ))}
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">{title}</p>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <div className="rounded-lg border border-primary/15 bg-primary-tint p-3">
-                <p className="text-[9px] text-primary/70">{label}</p>
-                <p className="mt-1 font-tabular text-base font-semibold text-primary">
-                  {metric}
-                </p>
-                <p className="mt-1 text-[9px] text-success">{note}</p>
-              </div>
-              <div className="rounded-lg border border-border p-3">
-                <p className="text-[9px] text-muted-foreground">
-                  Workspace status
-                </p>
-                <p className="mt-1 text-sm font-semibold">Up to date</p>
-                <p className="mt-1 text-[9px] text-muted-foreground">
-                  All activity connected
-                </p>
-              </div>
-            </div>
-            <div className="mt-3 rounded-lg border border-border p-3">
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] font-semibold">Activity overview</p>
-                <p className="text-[9px] text-muted-foreground">This week</p>
-              </div>
-              <div className="mt-5 flex h-24 items-end gap-2">
-                {bars.map((height, index) => (
-                  <span
-                    key={index}
-                    className={`w-full rounded-t-sm ${index === 5 ? "bg-primary" : "bg-primary/20"}`}
-                    style={{ height: `${height}%` }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -664,18 +516,63 @@ function PricingSection() {
 
 export function MarketingLandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [cookieBannerOpen, setCookieBannerOpen] = useState(true);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const isClient = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+  const cookieBannerOpen = isClient && !bannerDismissed && !getCookieConsent();
+
+  const persistConsent = (preferences: {
+    essential: boolean;
+    preferences: boolean;
+    analytics: boolean;
+    marketing: boolean;
+  }) => {
+    setCookieConsent(preferences);
+    setBannerDismissed(true);
+  };
+
+  const handleAcceptConsent = () => {
+    persistConsent({
+      essential: true,
+      preferences: true,
+      analytics: true,
+      marketing: true,
+    });
+  };
+
+  const handleRejectConsent = () => {
+    persistConsent({
+      essential: true,
+      preferences: false,
+      analytics: false,
+      marketing: false,
+    });
+  };
+
+  const handleSavePreferences = (preferences: {
+    essential: boolean;
+    preferences: boolean;
+    analytics: boolean;
+    marketing: boolean;
+  }) => {
+    persistConsent(preferences);
+  };
 
   return (
     <main className="overflow-hidden bg-[#f8faf9] text-foreground">
+      <RevealOnScroll />
+      <ScrollToTopButton />
       <header className="sticky top-0 z-50 border-b border-[#dce8e3]/80 bg-[#f8faf9]/90 backdrop-blur-md">
         <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5 sm:px-8 lg:px-10">
           <Logo />
           <nav className="hidden items-center gap-7 text-sm text-muted-foreground lg:flex">
             {navItems.map(([label, href]) => (
-              <a key={href} href={href} className="hover:text-foreground">
+              <Link key={href} href={href} className="hover:text-foreground">
                 {label}
-              </a>
+              </Link>
             ))}
           </nav>
           <div className="hidden items-center gap-3 lg:flex">
@@ -714,6 +611,16 @@ export function MarketingLandingPage() {
                   {label}
                 </a>
               ))}
+              {navItems.map(([label, href]) => (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setMenuOpen(false)}
+                  className="rounded-md px-3 py-3"
+                >
+                  {label}
+                </Link>
+              ))}
               <Link
                 href="/login"
                 className="mt-2 px-3 py-3 font-medium text-primary"
@@ -732,7 +639,7 @@ export function MarketingLandingPage() {
       </header>
 
       <section
-        className="relative overflow-hidden border-b border-[#dce8e3]"
+        className="reveal-on-scroll relative overflow-hidden border-b border-[#dce8e3]"
         style={{
           backgroundImage: "url('/images/hero1.png')",
           backgroundSize: "cover",
@@ -742,8 +649,8 @@ export function MarketingLandingPage() {
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.96)_0%,rgba(255,255,255,0.86)_32%,rgba(255,255,255,0.72)_48%,rgba(255,255,255,0.22)_100%)]" />
         <div className="relative mx-auto grid max-w-7xl gap-12 px-5 pb-16 pt-16 sm:px-8 sm:pt-24 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-16 lg:px-10 lg:pb-24">
           <div className="max-w-xl">
-            <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-white/70 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Business
+            <p className="mb-6 inline-flex items-center gap-2 border border-primary/20 bg-white/70 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+              <span className="h-1.5 w-1.5 bg-primary" /> Business
               operations, connected
             </p>
             <h1 className="premium-serif text-4xl font-semibold leading-[0.92] tracking-[-0.06em] sm:text-5xl lg:text-[4.1rem]">
@@ -789,7 +696,7 @@ export function MarketingLandingPage() {
         </div>
       </section>
 
-      <section className="border-b border-border bg-white">
+      <section className="reveal-on-scroll border-b border-border bg-white">
         <div className="mx-auto max-w-7xl px-5 py-5 sm:px-8 lg:px-10">
           <div className="grid overflow-hidden border border-border bg-[#f8fbfa] shadow-[0_10px_24px_rgba(15,123,108,0.04)] sm:grid-cols-3">
             {[
@@ -867,46 +774,26 @@ export function MarketingLandingPage() {
         </div>
       </section>
 
-      <section className="bg-[#103f38] text-white">
-        <div className="mx-auto grid max-w-7xl gap-12 px-5 py-20 sm:px-8 lg:grid-cols-[0.8fr_1.2fr] lg:px-10 lg:py-24">
-          <div>
+      <section className="reveal-on-scroll bg-[#103f38] text-white">
+        <div className="mx-auto max-w-5xl px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
+          <div className="max-w-3xl">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#8de0c1]">
               More than a till
             </p>
             <h2 className="premium-serif mt-4 text-3xl font-semibold leading-[1.02] tracking-[-0.04em] sm:text-4xl">
               DukaOS is your business operating system.
             </h2>
-            <p className="mt-5 max-w-md text-sm leading-7 text-emerald-50/70">
+            <p className="mt-5 text-sm leading-7 text-emerald-50/70">
               A POS records a sale. DukaOS connects the sale to inventory,
               revenue, customer history, and business reports.
             </p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border border-white/15 bg-white/10 p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#8de0c1]">
-                Traditional POS
-              </p>
-              <p className="mt-3 text-sm text-emerald-50/70">
-                Records a transaction, then leaves you to piece together the
-                rest.
-              </p>
-            </div>
-            <div className="rounded-xl border border-[#8de0c1]/40 bg-[#8de0c1]/10 p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#8de0c1]">
-                DukaOS
-              </p>
-              <p className="mt-3 text-sm">
-                Sales, inventory, purchases, customers, suppliers, branches,
-                users, payments, and reports working together.
-              </p>
-            </div>
           </div>
         </div>
       </section>
 
       <section
         id="features"
-        className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:px-10 lg:py-28"
+        className="reveal-on-scroll mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:px-10 lg:py-28"
       >
         <div className="max-w-2xl">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
@@ -924,7 +811,8 @@ export function MarketingLandingPage() {
           {featureGroups.map(({ name, description, items }, index) => (
             <article
               key={name}
-              className="group rounded-xl border border-border bg-white p-6 transition-all duration-200 hover:border-primary hover:bg-primary hover:shadow-[0_20px_42px_rgba(15,123,108,0.16)]"
+              className="reveal-on-scroll group rounded-xl border border-border bg-white p-6 transition-all duration-200 hover:border-primary hover:bg-primary hover:shadow-[0_20px_42px_rgba(15,123,108,0.16)]"
+              style={{ transitionDelay: `${index * 60}ms` }}
             >
               <div className="grid h-12 w-12 place-items-center rounded-full bg-primary-tint text-lg font-bold text-primary transition-colors duration-200 group-hover:bg-white/12 group-hover:text-white">
                 {index + 1}
@@ -1176,45 +1064,7 @@ export function MarketingLandingPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {(
-            [
-              [
-                ShieldCheck,
-                "Secure authentication",
-                "Your account is protected behind controlled access.",
-              ],
-              [
-                Building2,
-                "Business data isolation",
-                "Your business information is separated from other workspaces.",
-              ],
-              [
-                Users,
-                "Role-based access",
-                "Give each team member the right level of control.",
-              ],
-              [
-                ClipboardList,
-                "Traceable records",
-                "Keep transaction and payment history ready when you need it.",
-              ],
-            ] as const
-          ).map(([Icon, title, text]) => (
-            <div
-              key={String(title)}
-              className="rounded-xl border border-border bg-white p-6"
-            >
-              <Icon className="text-primary" size={22} />
-              <h3 className="mt-5 text-base font-semibold">{title}</h3>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                {text}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
+      
 
       <section className="border-t border-border bg-white">
         <div className="mx-auto grid max-w-7xl gap-12 px-5 py-20 sm:px-8 lg:grid-cols-[0.65fr_1.35fr] lg:px-10 lg:py-24">
@@ -1278,157 +1128,13 @@ export function MarketingLandingPage() {
         </div>
       </section>
 
-      <footer className="bg-[#103f38] text-white">
-        <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:px-10">
-          <div className="grid gap-10 border-b border-white/10 pb-10 lg:grid-cols-[1.35fr_0.8fr_0.8fr_0.8fr_0.8fr]">
-            <div className="max-w-sm">
-              <Logo footer />
-              <p className="mt-5 text-[15px] font-medium text-[#d8f7e8]">
-                More than a till.
-              </p>
-              <p className="mt-2 text-sm leading-6 text-emerald-50/70">
-                Your business operating system.
-              </p>
-              <p className="mt-4 text-sm leading-6 text-emerald-50/70">
-                Manage sales, inventory, customers, payments, and your entire
-                business from one connected platform.
-              </p>
-            </div>
-
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8de0c1]">
-                Product
-              </p>
-              <ul className="mt-5 space-y-3 text-sm text-emerald-50/75">
-                {[
-                  "POS",
-                  "Inventory",
-                  "Sales",
-                  "Customers",
-                  "Purchases",
-                  "Suppliers",
-                  "Payments",
-                  "Reports",
-                ].map((item) => (
-                  <li key={item}>
-                    <a href="#features" className="hover:text-white">
-                      {item}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8de0c1]">
-                Business
-              </p>
-              <ul className="mt-5 space-y-3 text-sm text-emerald-50/75">
-                {[
-                  "Pricing",
-                  "Retail",
-                  "Supermarkets",
-                  "Restaurants",
-                  "Pharmacies",
-                  "Wholesalers",
-                  "Multi-branch",
-                ].map((item) => (
-                  <li key={item}>
-                    <a href="#pricing" className="hover:text-white">
-                      {item}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8de0c1]">
-                Resources
-              </p>
-              <ul className="mt-5 space-y-3 text-sm text-emerald-50/75">
-                {[
-                  "Help Center",
-                  "Documentation",
-                  "Getting Started",
-                  "FAQs",
-                  "Support",
-                  "System Status",
-                ].map((item) => (
-                  <li key={item}>
-                    <a href="#faq" className="hover:text-white">
-                      {item}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8de0c1]">
-                Company
-              </p>
-              <ul className="mt-5 space-y-3 text-sm text-emerald-50/75">
-                {[
-                  "About DukaOS",
-                  "Contact",
-                  "Careers",
-                  "Partners",
-                ].map((item) => (
-                  <li key={item}>
-                    <a href="#" className="hover:text-white">
-                      {item}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-8">
-                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8de0c1]">
-                  Connect with us
-                </p>
-                <div className="mt-4 flex flex-wrap gap-4 text-sm text-emerald-50/75">
-                  {[
-                    "Instagram",
-                    "WhatsApp",
-                    "Facebook",
-                    "LinkedIn",
-                  ].map((item) => (
-                    <a key={item} href="#" className="hover:text-white">
-                      {item}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-8 flex flex-col justify-between gap-4 text-sm text-emerald-50/60 md:flex-row md:items-center">
-            <p>© {new Date().getFullYear()} DukaOS. All rights reserved.</p>
-            <div className="flex flex-wrap gap-x-5 gap-y-2">
-              {[
-                { label: "Privacy Policy", href: "/privacy-policy" },
-                { label: "Terms of Service", href: "/terms" },
-                { label: "Cookie Policy", href: "/cookies" },
-                { label: "Status", href: "/" },
-              ].map((item) => (
-                <Link key={item.label} href={item.href} className="hover:text-white">
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-6 flex items-center justify-center gap-2 text-xs font-medium text-emerald-50/50">
-            <span aria-hidden="true">🇰🇪</span>
-            <span>Built for African businesses</span>
-          </div>
-        </div>
-      </footer>
+      <MarketingFooter />
 
       <CookieConsentBanner
         open={cookieBannerOpen}
-        onAccept={() => setCookieBannerOpen(false)}
-        onReject={() => setCookieBannerOpen(false)}
+        onAccept={handleAcceptConsent}
+        onReject={handleRejectConsent}
+        onSavePreferences={handleSavePreferences}
       />
     </main>
   );

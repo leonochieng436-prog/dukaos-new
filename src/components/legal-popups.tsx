@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { getCookieConsent, type CookieConsentPreferences } from "@/lib/cookie-consent";
 
 export type LegalTab = "privacy" | "terms" | "cookies";
 
@@ -383,10 +385,12 @@ function CookiePreferencesModal({
 }: {
   open: boolean;
   onClose: () => void;
-  onSave: (preferences: { analytics: boolean; marketing: boolean }) => void;
+  onSave: (preferences: { essential: boolean; preferences: boolean; analytics: boolean; marketing: boolean }) => void;
 }) {
-  const [analytics, setAnalytics] = useState(false);
-  const [marketing, setMarketing] = useState(false);
+  const savedConsent = getCookieConsent();
+  const [preferences, setPreferences] = useState(savedConsent?.preferences ?? false);
+  const [analytics, setAnalytics] = useState(savedConsent?.analytics ?? false);
+  const [marketing, setMarketing] = useState(savedConsent?.marketing ?? false);
 
   useEffect(() => {
     if (!open) return;
@@ -420,7 +424,7 @@ function CookiePreferencesModal({
               Cookie preferences
             </p>
             <h2 className="mt-1 text-xl font-semibold text-foreground">
-              Manage your consent
+              Manage your cookie preferences
             </h2>
           </div>
           <button
@@ -434,23 +438,44 @@ function CookiePreferencesModal({
         </div>
 
         <div className="space-y-5 px-5 py-5 sm:px-6">
+          <p className="text-sm text-muted-foreground">
+            Manage which types of cookies you allow DukaOS to use. Essential cookies cannot be disabled because they are necessary for the website to function.
+          </p>
+
           <div className="rounded-xl border border-border bg-[#f9fbfa] p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-foreground">Essential cookies</p>
-                <p className="text-xs text-muted-foreground">Required for secure access and platform operation.</p>
+                <p className="text-xs text-muted-foreground">
+                  Required for secure access, sessions, authentication and core platform functionality.
+                </p>
               </div>
               <span className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">
-                Always on
+                Always active
               </span>
             </div>
           </div>
 
           <label className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-border p-4">
             <div>
+              <p className="text-sm font-semibold text-foreground">Preference cookies</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Remember choices such as language or region to provide a more personalised experience.
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              checked={preferences}
+              onChange={(event) => setPreferences(event.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
+            />
+          </label>
+
+          <label className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-border p-4">
+            <div>
               <p className="text-sm font-semibold text-foreground">Analytics cookies</p>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                Help us understand feature usage and improve product performance.
+                Help us understand how visitors use DukaOS so we can improve performance, content and user experience.
               </p>
             </div>
             <input
@@ -465,7 +490,7 @@ function CookiePreferencesModal({
             <div>
               <p className="text-sm font-semibold text-foreground">Marketing cookies</p>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                Allow relevant communications and campaign measurement where consent is obtained.
+                Used to measure campaign performance and understand interactions with marketing content where relevant.
               </p>
             </div>
             <input
@@ -479,14 +504,14 @@ function CookiePreferencesModal({
           <div className="flex flex-wrap justify-end gap-3 pt-2">
             <button
               type="button"
-              onClick={() => onSave({ analytics: false, marketing: false })}
+              onClick={() => onSave({ essential: true, preferences: false, analytics: false, marketing: false })}
               className="rounded-md border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:border-primary hover:text-primary"
             >
               Save preferences
             </button>
             <button
               type="button"
-              onClick={() => onSave({ analytics: true, marketing: true })}
+              onClick={() => onSave({ essential: true, preferences: true, analytics: true, marketing: true })}
               className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover"
             >
               Accept all
@@ -502,10 +527,12 @@ export function CookieConsentBanner({
   open,
   onAccept,
   onReject,
+  onSavePreferences,
 }: {
   open: boolean;
   onAccept: () => void;
   onReject: () => void;
+  onSavePreferences?: (preferences: CookieConsentPreferences) => void;
 }) {
   const [preferencesOpen, setPreferencesOpen] = useState(false);
 
@@ -513,38 +540,60 @@ export function CookieConsentBanner({
 
   return (
     <>
-      <div className="fixed inset-x-0 bottom-0 z-[70] bg-[#0f2f2a] px-4 py-4 text-white shadow-[0_-10px_30px_rgba(15,47,42,0.35)]">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="max-w-3xl">
-            <p className="text-sm font-semibold">We use cookies to keep DukaOS secure and improve your experience.</p>
-            <p className="mt-1 text-sm text-emerald-50/70">
-              We use essential cookies for the service to operate and optional cookies
-              for analytics and product improvements. You can adjust your preferences
-              at any time.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setPreferencesOpen(true)}
-              className="rounded-md border border-white/20 px-4 py-2 text-sm font-medium text-emerald-50/80 hover:border-white/40 hover:text-white"
-            >
-              Preferences
-            </button>
-            <button
-              type="button"
-              onClick={onReject}
-              className="rounded-md border border-white/20 px-4 py-2 text-sm font-medium text-emerald-50/80 hover:border-white/40 hover:text-white"
-            >
-              Only essential
-            </button>
-            <button
-              type="button"
-              onClick={onAccept}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover"
-            >
-              Accept all
-            </button>
+      <div className="fixed inset-x-0 bottom-4 z-[70] px-3 sm:px-4">
+        <div className="relative mx-auto max-w-6xl rounded-2xl border border-slate-200 bg-white/95 px-4 py-4 shadow-[0_25px_60px_rgba(15,23,42,0.12)] backdrop-blur-sm sm:px-6">
+          <button
+            type="button"
+            onClick={onReject}
+            aria-label="Close cookie message"
+            className="absolute right-3 top-3 rounded-md border border-slate-200 p-2 text-slate-500 transition hover:border-primary hover:text-primary"
+          >
+            <X size={16} />
+          </button>
+
+          <div className="flex max-w-6xl flex-col gap-4 pr-10 md:flex-row md:items-center md:justify-between">
+            <div className="flex-1 max-w-3xl">
+              <p className="text-sm font-semibold text-slate-900">We use cookies</p>
+              <p className="mt-1 text-sm leading-6 text-slate-700">
+                DukaOS uses cookies and similar technologies to keep our website working, improve your experience and understand how visitors use our site.
+              </p>
+              <p className="mt-2 text-xs leading-5 text-slate-600">
+                Essential cookies are always active. Optional cookies are only used according to your preferences.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-700">
+                <Link href="/cookie-policy" className="font-medium underline-offset-2 hover:text-primary hover:underline">
+                  Cookie Policy
+                </Link>
+                <span aria-hidden="true">·</span>
+                <Link href="/privacy-policy" className="font-medium underline-offset-2 hover:text-primary hover:underline">
+                  Privacy Policy
+                </Link>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={onReject}
+                className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+              >
+                Reject optional
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreferencesOpen(true)}
+                className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
+              >
+                Cookie settings
+              </button>
+              <button
+                type="button"
+                onClick={onAccept}
+                className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-hover"
+              >
+                Accept all
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -552,13 +601,9 @@ export function CookieConsentBanner({
       <CookiePreferencesModal
         open={preferencesOpen}
         onClose={() => setPreferencesOpen(false)}
-        onSave={(preferences) => {
+        onSave={(decision) => {
           setPreferencesOpen(false);
-          if (preferences.analytics || preferences.marketing) {
-            onAccept();
-          } else {
-            onReject();
-          }
+          onSavePreferences?.(decision);
         }}
       />
     </>

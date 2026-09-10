@@ -64,6 +64,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -133,6 +137,17 @@ h6 {
   box-shadow: 0 0 0 3px rgba(15, 123, 108, 0.14);
 }
 
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(26px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.reveal-on-scroll.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .scrollbar-hidden {
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -171,9 +186,17 @@ h6 {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   .mobile-nav-backdrop,
-  .mobile-nav-panel {
+  .mobile-nav-panel,
+  .reveal-on-scroll {
     animation: none;
+    transition: none;
+    opacity: 1;
+    transform: none;
   }
 }
 
