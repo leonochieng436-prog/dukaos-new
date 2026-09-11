@@ -20,28 +20,62 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
+const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://dukaos.com";
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
-  title: "DukaOS — Business Operating System",
+  metadataBase: new URL(appUrl),
+  title: "DukaOS | POS, Inventory & Business Management Software for Kenyan Businesses",
   description:
-    "Point of sale, inventory, suppliers, customers and financials for Kenyan businesses.",
+    "DukaOS is a modern POS, inventory, purchases, customer credit, supplier, and reporting system built for growing Kenyan retail and service businesses.",
+  applicationName: "DukaOS",
+  keywords: [
+    "POS system Kenya",
+    "inventory management software Kenya",
+    "retail POS Kenya",
+    "business management system Kenya",
+    "small business POS",
+    "multi-branch POS Kenya",
+    "customer credit management",
+    "supplier management software",
+    "DukaOS",
+  ],
+  authors: [{ name: "DukaOS" }],
+  creator: "DukaOS",
+  publisher: "DukaOS",
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
   icons: {
     icon: "/images/DukaOS-logo.png",
     shortcut: "/images/DukaOS-logo.png",
     apple: "/images/DukaOS-logo.png",
   },
   openGraph: {
-    title: "DukaOS — Business Operating System",
+    type: "website",
+    locale: "en_KE",
+    url: appUrl,
+    siteName: "DukaOS",
+    title: "DukaOS | POS, Inventory & Business Management Software for Kenyan Businesses",
     description:
-      "Point of sale, inventory, suppliers, customers and financials for Kenyan businesses.",
-    images: ["/images/DukaOS-logo.png"],
+      "Manage sales, inventory, purchases, customer credit, warehouses, branches, and reports in one connected platform built for Kenyan businesses.",
+    images: [{ url: "/images/DukaOS-logo2.png", width: 1200, height: 630, alt: "DukaOS business operating system" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "DukaOS — Business Operating System",
+    site: "@DukaOS",
+    creator: "@DukaOS",
+    title: "DukaOS | POS, Inventory & Business Management Software for Kenyan Businesses",
     description:
-      "Point of sale, inventory, suppliers, customers and financials for Kenyan businesses.",
-    images: ["/images/DukaOS-logo.png"],
+      "Manage sales, inventory, purchases, customer credit, warehouses, branches, and reports in one connected platform built for Kenyan businesses.",
+    images: ["/images/DukaOS-logo2.png"],
   },
 };
 

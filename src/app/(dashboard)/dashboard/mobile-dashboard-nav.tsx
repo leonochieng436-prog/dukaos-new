@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { LogOut, Menu, X } from "lucide-react";
+import { logout } from "@/app/actions/auth";
 import type { DashboardNavItem } from "./dashboard-nav";
 import { DashboardNav } from "./dashboard-nav";
 
@@ -11,6 +12,16 @@ export function MobileDashboardNav({ items }: { items: DashboardNavItem[] }) {
 
   return (
     <>
+      <form action={logout} className="hidden sm:block">
+        <button
+          type="submit"
+          aria-label="Log out"
+          title="Log out"
+          className="grid h-9 w-9 place-items-center rounded-[var(--radius-sm)] text-muted-foreground hover:bg-surface-muted hover:text-foreground"
+        >
+          <LogOut size={17} />
+        </button>
+      </form>
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -41,6 +52,16 @@ export function MobileDashboardNav({ items }: { items: DashboardNavItem[] }) {
               </button>
             </div>
             <DashboardNav items={items} onNavigate={() => setOpen(false)} />
+            <form action={logout} className="mt-6 border-t border-border pt-4">
+              <button
+                type="submit"
+                className="flex w-full items-center justify-between rounded-[var(--radius-md)] border border-border px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-primary hover:text-primary"
+                onClick={() => setOpen(false)}
+              >
+                <span>Log out</span>
+                <LogOut size={16} />
+              </button>
+            </form>
           </aside>
         </div>
       )}

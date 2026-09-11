@@ -514,6 +514,36 @@ function PricingSection() {
   );
 }
 
+const schemaMarkup = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "DukaOS",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  offers: {
+    "@type": "Offer",
+    price: "1200",
+    priceCurrency: "KES",
+    category: "POS and business management software",
+  },
+  description:
+    "DukaOS is a POS, inventory, customer credit, purchase, and reporting platform for Kenyan businesses.",
+  featureList: [
+    "Point of sale",
+    "Inventory control",
+    "Supplier and purchase management",
+    "Customer credit tracking",
+    "Branch and warehouse management",
+    "Business reporting",
+  ],
+  publisher: {
+    "@type": "Organization",
+    name: "DukaOS",
+    sameAs: "https://dukaos.com",
+  },
+  areaServed: "Kenya",
+};
+
 export function MarketingLandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
@@ -564,7 +594,12 @@ export function MarketingLandingPage() {
   };
 
   return (
-    <main className="overflow-hidden bg-[#f8faf9] text-foreground">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaMarkup) }}
+      />
+      <main className="overflow-hidden bg-[#f8faf9] text-foreground">
       <RevealOnScroll />
       <ScrollToTopButton />
       <header className="sticky top-0 z-50 border-b border-[#dce8e3]/80 bg-[#f8faf9]/90 backdrop-blur-md">
@@ -1202,5 +1237,6 @@ export function MarketingLandingPage() {
         onClose={() => setLegalOpen(false)}
       />
     </main>
+    </>
   );
 }

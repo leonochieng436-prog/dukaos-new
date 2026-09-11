@@ -37,13 +37,19 @@ export function PosForm({ branches, warehouses, registers, variants, customers, 
   const resolvedRegisterId = activeSession ? activeSession.registerId : registerId;
   const visibleWarehouses = warehouses.filter((item) => item.branchId === resolvedBranchId);
   const visibleRegisters = registers.filter((item) => item.branchId === resolvedBranchId);
+  const stockFor = (variant: Variant) => new Decimal(variant.stockByWarehouse.find((item) => item.warehouseId === warehouseId)?.quantity ?? 0);
   const categories = ["All products", ...Array.from(new Set(variants.map((item) => item.category)))];
   const filteredVariants = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return variants.filter((item) => (category === "All products" || item.category === category) && (!query || `${item.name} ${item.sku} ${item.category}`.toLowerCase().includes(query)));
-  }, [category, search, variants]);
+    return variants.filter((item) => {
+      const inCategory = category === "All products" || item.category === category;
+      const isAvailable = stockFor(item).greaterThan(0);
+      const matchesQuery = !query || `${item.name} ${item.sku} ${item.category}`.toLowerCase().includes(query);
+      return inCategory && isAvailable && matchesQuery;
+    });
+  }, [category, search, stockFor, variants, warehouseId]);
+  const mobileSearchResults = filteredVariants.slice(0, 8);
   const cartLines = cart.map((line) => ({ ...line, variant: variants.find((item) => item.id === line.variantId)! })).filter((line) => line.variant);
-  const stockFor = (variant: Variant) => new Decimal(variant.stockByWarehouse.find((item) => item.warehouseId === warehouseId)?.quantity ?? 0);
   const total = cartLines.reduce((sum, line) => sum.plus(new Decimal(line.variant.price).times(line.quantity)), new Decimal(0));
   const received = new Decimal(amountPaid || 0);
   const secondReceived = new Decimal(secondPaymentAmount || 0);
@@ -155,8 +161,31 @@ export function PosForm({ branches, warehouses, registers, variants, customers, 
       <section className="min-w-0 space-y-4">
         <div className="flex gap-2"><div className="relative flex-1"><Search size={17} className="pointer-events-none absolute left-3 top-3 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search product, SKU or barcode..." className="h-11 pl-10" autoFocus /></div><Button type="button" variant="secondary" size="icon" title="Barcode scanner"><Barcode size={18} /></Button></div>
         <div className="flex gap-2 overflow-x-auto pb-1">{categories.map((item) => <button key={item} type="button" onClick={() => setCategory(item)} className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors ${category === item ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface text-muted-foreground hover:border-primary hover:text-primary"}`}>{item}</button>)}</div>
-        <div className="flex items-center justify-between"><div><h2 className="text-sm font-semibold">Product catalog</h2><p className="mt-1 text-[12px] text-muted-foreground">{filteredVariants.length} products available</p></div><span className="text-[12px] text-muted-foreground">Click a product to add it</span></div>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-4">
+        <div className="flex items-center justify-between md:justify-start"><div><h2 className="text-sm font-semibold">Product catalog</h2><p className="mt-1 text-[12px] text-muted-foreground">{filteredVariants.length} products available</p></div><span className="hidden text-[12px] text-muted-foreground md:inline">Click a product to add it</span></div>
+        {search.trim().length > 0 && (
+          <div className="relative z-20 md:hidden">
+            <div className="rounded-[var(--radius-md)] border border-border bg-white p-2 shadow-[0_8px_18px_rgba(18,23,26,0.08)]">
+              {mobileSearchResults.length === 0 ? (
+                <div className="rounded-[var(--radius-md)] border border-dashed border-border-strong px-3 py-4 text-center text-sm text-muted-foreground">No available products match your search.</div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {mobileSearchResults.map((variant) => (
+                    <button
+                      key={variant.id}
+                      type="button"
+                      onClick={() => addToCart(variant.id)}
+                      className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-2 text-left text-xs font-medium text-foreground transition-colors hover:border-primary hover:bg-primary/10"
+                    >
+                      <span className="max-w-[150px] truncate">{variant.label}</span>
+                      <span className="font-tabular text-[11px] text-primary">KES {new Decimal(variant.price).toFixed(2)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        <div className="hidden grid-cols-2 gap-3 md:grid md:grid-cols-3 2xl:grid-cols-4">
           {filteredVariants.map((variant) => {
             const stock = stockFor(variant);
             return <button key={variant.id} type="button" onClick={() => addToCart(variant.id)} disabled={stock.lessThanOrEqualTo(0)} className="group overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface text-left transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-[0_8px_20px_rgba(18,23,26,0.08)] disabled:cursor-not-allowed disabled:opacity-55"><div className="relative flex aspect-[4/3] items-center justify-center bg-surface-muted">{variant.imageUrl ? <img src={variant.imageUrl} alt="" className="h-full w-full object-cover" /> : <ShoppingCart size={28} className="text-border-strong" />}<span className={`absolute right-2 top-2 rounded-full px-2 py-1 text-[10px] font-semibold ${stock.lessThanOrEqualTo(0) ? "bg-danger-tint text-danger" : stock.lessThan(5) ? "bg-warning-tint text-warning" : "bg-success-tint text-success"}`}>{stock.lessThanOrEqualTo(0) ? "Out of stock" : `${stock.toFixed(0)} in stock`}</span></div><div className="p-3"><p className="truncate text-sm font-semibold">{variant.label}</p><p className="mt-1 truncate text-[11px] text-muted-foreground">SKU {variant.sku}</p><div className="mt-3 flex items-center justify-between"><span className="font-tabular text-sm font-semibold text-primary">KES {new Decimal(variant.price).toFixed(2)}</span><span className="grid h-7 w-7 place-items-center rounded-full bg-primary-tint text-primary transition-colors group-hover:bg-primary group-hover:text-white"><Plus size={15} /></span></div></div></button>;
