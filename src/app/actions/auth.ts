@@ -6,7 +6,7 @@ import { rawPrisma } from "@/server/db/client";
 import { hashPassword, verifyPassword } from "@/server/auth/password";
 import { createSession, destroyCurrentSession } from "@/server/auth/session";
 import { recordAudit } from "@/server/services/audit";
-import { brandedEmail, sendMessage } from "@/server/services/messaging";
+import { brandedEmail, escapeHtml, sendMessage } from "@/server/services/messaging";
 import {
   provisionSystemRoles,
   provisionDefaultExpenseCategories,
@@ -135,7 +135,53 @@ export async function registerOrganization(
     userAgent: h.get("user-agent"),
   });
 
-  return { ok: true, data: { redirectTo: "/account-pending" } };
+  const planName = input.plan.charAt(0).toUpperCase() + input.plan.slice(1);
+  const notificationFailures: string[] = [];
+
+  try {
+    await sendMessage({
+      channel: "whatsapp",
+      recipient: "254757308631",
+      message: [
+        "New DukaOS business registration",
+        `Business: ${result.org.name}`,
+        `Owner: ${result.user.name}`,
+        `Email: ${result.user.email}`,
+        `Phone: ${result.org.phone ?? "Not provided"}`,
+        `Business type: ${result.org.businessType}`,
+        `Package: ${planName}`,
+        "Status: Pending payment confirmation",
+      ].join("\n"),
+    });
+  } catch (error) {
+    notificationFailures.push("WhatsApp notification");
+    console.error("[organization-registration] WhatsApp notification failed", error);
+  }
+
+  try {
+    await sendMessage({
+      channel: "email",
+      recipient: result.user.email,
+      subject: `Welcome to DukaOS, ${result.org.name}`,
+      message: `Welcome to DukaOS, ${result.user.name}. Your ${result.org.name} workspace is ready and waiting for payment confirmation.\n\nLogin email: ${result.user.email}\nPassword: ${input.password}\nPackage: ${planName}\n\nSign in at ${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/login after your account is activated.`,
+      html: brandedEmail({
+        preheader: `Your ${result.org.name} workspace is ready.`,
+        eyebrow: "Welcome to DukaOS",
+        title: "Your business workspace is ready",
+        body: `<p>Hi ${escapeHtml(result.user.name)},</p><p>Your <strong>${escapeHtml(result.org.name)}</strong> workspace has been created successfully. It is currently waiting for payment confirmation before your dashboard is activated.</p><div style="margin:24px 0;padding:18px 20px;background:#f3faf7;border:1px solid #d9eae4;border-radius:8px"><p style="margin:0 0 10px;color:#102b4e;font-weight:bold">Your login credentials</p><p style="margin:0;line-height:1.8">Email: <strong>${escapeHtml(result.user.email)}</strong><br>Password: <strong>${escapeHtml(input.password)}</strong><br>Package: <strong>${escapeHtml(planName)}</strong></p></div><p>Keep these credentials private. We will activate your workspace once payment has been confirmed.</p>`,
+        cta: { label: "Open DukaOS", url: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/login` },
+      }),
+    });
+  } catch (error) {
+    notificationFailures.push("welcome email");
+    console.error("[organization-registration] welcome email failed", error);
+  }
+
+  return {
+    ok: true,
+    data: { redirectTo: "/account-pending" },
+    ...(notificationFailures.length > 0 ? { warnings: notificationFailures } : {}),
+  };
 }
 
 export async function login(

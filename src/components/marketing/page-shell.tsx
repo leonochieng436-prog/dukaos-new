@@ -15,6 +15,10 @@ const navItems = [
   ["Contact", "/contact"],
 ] as const;
 
+const desktopNavLinkClass = "text-sm text-muted-foreground transition-colors duration-200 hover:text-primary";
+const mobileNavLinkClass =
+  "group flex items-center justify-between rounded-xl px-3 py-3 text-muted-foreground transition-all duration-200 hover:bg-primary/5 hover:px-4 hover:text-primary";
+
 export function BrandMark({ footer = false }: { footer?: boolean }) {
   return footer ? (
     <Link href="/" aria-label="DukaOS home">
@@ -56,118 +60,94 @@ export function MarketingPageHeader({
     <header className="sticky top-0 z-50 border-b border-[#dce8e3]/80 bg-[#f8faf9]/90 backdrop-blur-md">
       <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5 sm:px-8 lg:px-10">
         <BrandMark />
-        <nav className="hidden items-center gap-7 text-sm text-muted-foreground lg:flex">
-          {navItems.map(([label, href]) => (
-            <Link
-              key={href}
-              href={href}
-              className={
-                (active === "about" && href === "/about") || (active === "contact" && href === "/contact")
-                  ? "text-foreground"
-                  : "hover:text-foreground"
-              }
-            >
-              {label}
-            </Link>
-          ))}
-          <button
-            type="button"
-            onClick={() => onOpenLegal?.("privacy")}
-            className="hover:text-foreground"
-          >
-            Privacy
-          </button>
-          <button
-            type="button"
-            onClick={() => onOpenLegal?.("terms")}
-            className="hover:text-foreground"
-          >
-            Terms
-          </button>
-          <button
-            type="button"
-            onClick={() => onOpenLegal?.("cookies")}
-            className="hover:text-foreground"
-          >
-            Cookies
-          </button>
+
+        <nav className="hidden items-center gap-7 text-sm lg:flex">
+          {navItems.map(([label, href]) => {
+            const isActive =
+              (active === "about" && href === "/about") || (active === "contact" && href === "/contact");
+
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={
+                  isActive
+                    ? "text-foreground transition-colors duration-200"
+                    : `${desktopNavLinkClass}`
+                }
+              >
+                {label}
+              </Link>
+            );
+          })}
         </nav>
+
         <div className="hidden items-center gap-3 lg:flex">
-          <Link href="/login" className="px-3 py-2 text-sm font-medium hover:text-primary">
+          <Link href="/login" className="px-3 py-2 text-sm font-medium text-foreground transition-colors duration-200 hover:text-primary">
             Log in
           </Link>
           <Link
             href="/register"
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(15,123,108,0.18)] hover:bg-primary-hover"
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(15,123,108,0.18)] transition-colors duration-200 hover:bg-primary-hover"
           >
             Get started <ArrowRight size={15} />
           </Link>
         </div>
+
         <button
           type="button"
           onClick={() => setMenuOpen((open) => !open)}
-          className="grid h-10 w-10 place-items-center rounded-md border border-border bg-white lg:hidden"
+          className="grid h-10 w-10 place-items-center rounded-md border border-border bg-white transition-colors duration-200 hover:border-primary hover:text-primary lg:hidden"
           aria-label={menuOpen ? "Close menu" : "Open menu"}
         >
           {menuOpen ? <X size={19} /> : <Menu size={19} />}
         </button>
       </div>
-      {menuOpen && (
-        <div className="border-t border-border bg-white px-5 py-4 lg:hidden">
-          <nav className="flex flex-col gap-1 text-sm">
+
+      <div
+        className={`fixed inset-0 z-40 transition-opacity duration-300 ease-out lg:hidden ${
+          menuOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        aria-hidden={!menuOpen}
+      >
+        <button type="button" aria-label="Close navigation menu" className="absolute inset-0 bg-[#0f172a]/20" onClick={() => setMenuOpen(false)} />
+        <div
+          className={`absolute left-0 top-[72px] h-[calc(100vh-72px)] w-[min(82vw,320px)] border-r border-border bg-white shadow-[0_20px_45px_rgba(15,18,20,0.18)] transition-transform duration-300 ease-out ${
+            menuOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+        >
+          <nav className="flex h-full flex-col gap-1 p-4 text-sm">
             {navItems.map(([label, href]) => (
               <Link
                 key={href}
                 href={href}
                 onClick={() => setMenuOpen(false)}
-                className="rounded-md px-3 py-3"
+                className={mobileNavLinkClass}
               >
-                {label}
+                <span>{label}</span>
+                <span className="h-2 w-2 rounded-full bg-primary opacity-0 transition-all duration-200 group-hover:opacity-100" />
               </Link>
             ))}
-            <Link href="/login" className="mt-2 px-3 py-3 font-medium text-primary" onClick={() => setMenuOpen(false)}>
-              Log in
-            </Link>
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false);
-                onOpenLegal?.("privacy");
-              }}
-              className="px-3 py-3 text-left"
-            >
-              Privacy Policy
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false);
-                onOpenLegal?.("terms");
-              }}
-              className="px-3 py-3 text-left"
-            >
-              Terms & Conditions
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false);
-                onOpenLegal?.("cookies");
-              }}
-              className="px-3 py-3 text-left"
-            >
-              Cookie Policy
-            </button>
-            <Link
-              href="/register"
-              className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 font-semibold text-white"
-              onClick={() => setMenuOpen(false)}
-            >
-              Get started <ArrowRight size={15} />
-            </Link>
+
+            <div className="mt-auto space-y-2 border-t border-border pt-4">
+              <Link
+                href="/login"
+                onClick={() => setMenuOpen(false)}
+                className="flex rounded-xl border border-border px-3 py-3 font-medium text-foreground transition-colors duration-200 hover:border-primary hover:text-primary"
+              >
+                Log in
+              </Link>
+              <Link
+                href="/register"
+                onClick={() => setMenuOpen(false)}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-semibold text-white transition-colors duration-200 hover:bg-primary-hover"
+              >
+                Get started <ArrowRight size={15} />
+              </Link>
+            </div>
           </nav>
         </div>
-      )}
+      </div>
     </header>
   );
 }
@@ -266,9 +246,6 @@ export function MarketingFooter({ onOpenLegal }: { onOpenLegal?: (tab: LegalTab)
           <p>© {new Date().getFullYear()} DukaOS. All rights reserved.</p>
           <div className="flex flex-wrap gap-x-5 gap-y-2">
             {([
-              { label: 'Privacy Policy', action: 'privacy' as const },
-              { label: 'Terms of Service', action: 'terms' as const },
-              { label: 'Cookie Policy', action: 'cookies' as const },
               { label: 'Status', href: '/' },
             ] as Array<{ label: string; href?: string; action?: LegalTab }>)
               .map((item) => {
