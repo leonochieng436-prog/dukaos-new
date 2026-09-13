@@ -2,15 +2,17 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Barcode, Minus, Plus, Search, ShoppingCart, Trash2 } from "lucide-react";
+import { ArrowRight, Barcode, Camera, Minus, Plus, Search, ShoppingCart, Trash2 } from "lucide-react";
 import Decimal from "decimal.js";
 import { createSale } from "@/app/actions/sales";
 import { buildReceiptPreview } from "@/lib/sales";
+import { getVariantLookupMatch, normalizeScanCode } from "@/lib/barcode";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CameraBarcodeScanner } from "@/components/pos/camera-barcode-scanner";
 
 type Option = { id: string; name: string; branchId?: string };
-type Variant = { id: string; name: string; label: string; sku: string; price: string; imageUrl: string | null; category: string; stockByWarehouse: { warehouseId: string; quantity: string }[] };
+type Variant = { id: string; name: string; label: string; sku: string; price: string; imageUrl: string | null; category: string; barcodes: { barcode: string }[]; stockByWarehouse: { warehouseId: string; quantity: string }[] };
 type CartLine = { variantId: string; quantity: number };
 
 export function PosForm({ branches, warehouses, registers, variants, customers, activeSession }: { branches: Option[]; warehouses: Option[]; registers: Option[]; variants: Variant[]; customers: Option[]; activeSession?: { branchId: string; registerId: string } | null }) {
@@ -24,6 +26,8 @@ export function PosForm({ branches, warehouses, registers, variants, customers, 
   const [registerId, setRegisterId] = useState(activeRegisterId);
   const [warehouseId, setWarehouseId] = useState(warehouses.find((item) => item.branchId === activeBranchId)?.id ?? "");
   const [search, setSearch] = useState("");
+  const [scannerInput, setScannerInput] = useState("");
+  const [cameraScannerOpen, setCameraScannerOpen] = useState(false);
   const [category, setCategory] = useState("All products");
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "MPESA" | "CARD" | "BANK_TRANSFER" | "CREDIT" | "OTHER">("CASH");
   const [amountPaid, setAmountPaid] = useState("");
@@ -44,7 +48,8 @@ export function PosForm({ branches, warehouses, registers, variants, customers, 
     return variants.filter((item) => {
       const inCategory = category === "All products" || item.category === category;
       const isAvailable = stockFor(item).greaterThan(0);
-      const matchesQuery = !query || `${item.name} ${item.sku} ${item.category}`.toLowerCase().includes(query);
+      const barcodeText = item.barcodes.map((entry) => entry.barcode).join(" ");
+      const matchesQuery = !query || `${item.name} ${item.sku} ${item.category} ${barcodeText}`.toLowerCase().includes(query);
       return inCategory && isAvailable && matchesQuery;
     });
   }, [category, search, stockFor, variants, warehouseId]);
@@ -64,6 +69,58 @@ export function PosForm({ branches, warehouses, registers, variants, customers, 
       return existing ? current.map((line) => line.variantId === variantId ? { ...line, quantity: line.quantity + 1 } : line) : [...current, { variantId, quantity: 1 }];
     });
   }
+
+  async function processScan(code: string) {
+    const cleanedCode = normalizeScanCode(code);
+    if (!cleanedCode) return;
+
+    try {
+      const response = await fetch("/api/pos/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: cleanedCode }),
+      });
+
+      const payload = (await response.json().catch(() => ({ success: false, error: "Unable to read barcode response." }))) as {
+        success?: boolean;
+        error?: string;
+        product?: { id: string; name: string; price: string };
+      };
+
+      if (!response.ok || !payload.success || !payload.product) {
+        setError(payload.error ?? `No product found for barcode or SKU: ${cleanedCode}`);
+        setSuccess("");
+        return;
+      }
+
+      const variant = variants.find((item) => item.id === payload.product!.id);
+      if (!variant) {
+        setError("This product is no longer available.");
+        setSuccess("");
+        return;
+      }
+
+      if (stockFor(variant).lessThanOrEqualTo(0)) {
+        setError(`Out of stock: ${variant.label}`);
+        setSuccess("");
+        return;
+      }
+
+      addToCart(variant.id);
+      setError("");
+      setSuccess(`${variant.label} added to the sale.`);
+      setScannerInput("");
+      setSearch("");
+      setCameraScannerOpen(false);
+    } catch {
+      setError(`No product found for barcode or SKU: ${cleanedCode}`);
+      setSuccess("");
+    }
+  }
+
+  function handleBarcodeScan(code: string) {
+    void processScan(code);
+  }
   function adjustQuantity(variantId: string, delta: number) {
     setCart((current) => current.map((line) => {
       if (line.variantId !== variantId) return line;
@@ -82,6 +139,12 @@ export function PosForm({ branches, warehouses, registers, variants, customers, 
       return { ...line, quantity: Math.min(maximum, Math.max(0, quantity)) };
     }).filter((line) => line.quantity > 0));
   }
+  function handleScannerKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    handleBarcodeScan(event.currentTarget.value);
+  }
+
   function previewReceipt() {
     if (cartLines.length === 0) return;
     const previewPaymentMethod = splitPayment ? `${paymentMethod} + ${secondPaymentMethod}` : paymentMethod;
@@ -157,9 +220,35 @@ export function PosForm({ branches, warehouses, registers, variants, customers, 
   }
 
   return (
-    <form onSubmit={submit} className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
-      <section className="min-w-0 space-y-4">
-        <div className="flex gap-2"><div className="relative flex-1"><Search size={17} className="pointer-events-none absolute left-3 top-3 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search product, SKU or barcode..." className="h-11 pl-10" autoFocus /></div><Button type="button" variant="secondary" size="icon" title="Barcode scanner"><Barcode size={18} /></Button></div>
+    <>
+      {cameraScannerOpen && (
+        <CameraBarcodeScanner
+          onDetected={(code) => {
+            void processScan(code);
+          }}
+          onClose={() => setCameraScannerOpen(false)}
+        />
+      )}
+      <form onSubmit={submit} className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
+        <section className="min-w-0 space-y-4">
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <div className="relative flex-1"><Search size={17} className="pointer-events-none absolute left-3 top-3 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search product, SKU or barcode..." className="h-11 pl-10" autoFocus /></div>
+            <Button type="button" variant="secondary" size="icon" title="Scan with camera" onClick={() => setCameraScannerOpen(true)}>
+              <Camera size={18} />
+            </Button>
+          </div>
+          <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-border-strong bg-surface-muted px-3 py-2">
+            <Barcode size={16} className="text-primary" />
+            <Input
+              value={scannerInput}
+              onChange={(event) => setScannerInput(event.target.value)}
+              onKeyDown={handleScannerKeyDown}
+              placeholder="Scan barcode or enter SKU and press Enter"
+              className="h-9 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+            />
+          </div>
+        </div>
         <div className="flex gap-2 overflow-x-auto pb-1">{categories.map((item) => <button key={item} type="button" onClick={() => setCategory(item)} className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors ${category === item ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface text-muted-foreground hover:border-primary hover:text-primary"}`}>{item}</button>)}</div>
         <div className="flex items-center justify-between md:justify-start"><div><h2 className="text-sm font-semibold">Product catalog</h2><p className="mt-1 text-[12px] text-muted-foreground">{filteredVariants.length} products available</p></div><span className="hidden text-[12px] text-muted-foreground md:inline">Click a product to add it</span></div>
         {search.trim().length > 0 && (
@@ -206,5 +295,6 @@ export function PosForm({ branches, warehouses, registers, variants, customers, 
         </div>
       </aside>
     </form>
+    </>
   );
 }

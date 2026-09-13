@@ -28,6 +28,7 @@ export function NewProductForm({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [barcodeValue, setBarcodeValue] = useState("");
 
   const [categoryList, setCategoryList] = useState(categories);
   const [brandList, setBrandList] = useState(brands);
@@ -312,8 +313,25 @@ export function NewProductForm({
               {fieldErrors.sku && <p className="text-[12px] text-danger">{fieldErrors.sku[0]}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="barcode">Barcode (optional)</Label>
-              <Input id="barcode" name="barcode" placeholder="5449000000996" />
+              <Label htmlFor="barcode">Scan barcode / QR code</Label>
+              <Input
+                id="barcode"
+                name="barcode"
+                value={barcodeValue}
+                onChange={(event) => setBarcodeValue(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    const scannedValue = event.currentTarget.value.trim();
+                    if (scannedValue) {
+                      setBarcodeValue(scannedValue);
+                    }
+                    setTimeout(() => event.currentTarget.focus(), 50);
+                  }
+                }}
+                placeholder="Scan product barcode or QR code here"
+              />
+              <p className="text-[12px] text-muted-foreground">Use a USB/Bluetooth scanner that sends Enter after the scan, or type it manually if needed.</p>
               {fieldErrors.barcode && (
                 <p className="text-[12px] text-danger">{fieldErrors.barcode[0]}</p>
               )}

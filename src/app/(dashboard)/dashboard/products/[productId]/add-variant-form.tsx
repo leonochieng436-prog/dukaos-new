@@ -25,6 +25,7 @@ export function AddVariantForm({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [barcodeValue, setBarcodeValue] = useState("");
 
   function handleSubmit(formData: FormData) {
     setError(null);
@@ -107,8 +108,25 @@ export function AddVariantForm({
               <Input id="v-wholesale" name="wholesalePrice" type="number" step="0.01" min="0" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="v-barcode">Barcode (optional)</Label>
-              <Input id="v-barcode" name="barcode" />
+              <Label htmlFor="v-barcode">Scan barcode / QR code</Label>
+              <Input
+                id="v-barcode"
+                name="barcode"
+                value={barcodeValue}
+                onChange={(event) => setBarcodeValue(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    const scannedValue = event.currentTarget.value.trim();
+                    if (scannedValue) {
+                      setBarcodeValue(scannedValue);
+                    }
+                    setTimeout(() => event.currentTarget.focus(), 50);
+                  }
+                }}
+                placeholder="Scan product barcode or QR code here"
+              />
+              <p className="text-[12px] text-muted-foreground">Works with a keyboard-mode scanner that submits on Enter.</p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="v-tax">Tax rate</Label>
